@@ -11,23 +11,24 @@ from collections import deque, Counter
 
 MODEL_PATH = "models/sign_model.pkl"
 
-CONFIDENCE_THRESHOLD = 0.80      # chỉ chấp nhận nếu confidence >= 80%
-STABLE_FRAMES = 10               # số frame lưu lại để kiểm tra ổn định
-MIN_STABLE_COUNT = 8             # phải xuất hiện ít nhất 8/10 frame
-COOLDOWN_FRAMES = 20             # sau khi nhận 1 ký hiệu, chờ 20 frame mới nhận tiếp
+CONFIDENCE_THRESHOLD = 0.80
+STABLE_FRAMES = 10
+MIN_STABLE_COUNT = 8
 
 # =========================================
 # CHECK MODEL
 # =========================================
 
 if not os.path.exists(MODEL_PATH):
-    print(f"Khong tim thay model: {MODEL_PATH}")
-    print("Hay train model truoc bang:")
+    print("Khong tim thay model!")
+    print("Hay train model truoc:")
     print("python training/train_model.py")
     exit()
 
 print("Dang tai model...")
+
 model = joblib.load(MODEL_PATH)
+
 print("Tai model thanh cong!")
 
 # =========================================
@@ -60,91 +61,59 @@ if not cap.isOpened():
 
 recent_predictions = deque(maxlen=STABLE_FRAMES)
 
-sentence = []
-last_accepted_sign = ""
-cooldown_counter = 0
+text_result = ""
 
 current_prediction = ""
 current_confidence = 0.0
 
-# map label -> text hien thi dep hon
-DISPLAY_MAP = {
-    "A": "A",
-    "B": "B",
-    "C": "C",
-    "D": "D",
-    "E": "E",
-    "F": "F",
-    "G": "G",
-    "H": "H",
-    "I": "I",
-    "J": "J",
-    "K": "K",
-    "L": "L",
-    "M": "M",
-    "N": "N",
-    "O": "O",
-    "P": "P",
-    "Q": "Q",
-    "R": "R",
-    "S": "S",
-    "T": "T",
-    "U": "U",
-    "V": "V",
-    "W": "W",
-    "X": "X",
-    "Y": "Y",
-    "Z": "Z",
-    "TOI": "Toi",
-    "BAN": "Ban",
-    "CO": "Co",
-    "KHONG": "Khong",
-    "GIUP_DO": "Giup do",
-    "XIN_CHAO": "Xin chao",
-    "CAM_ON": "Cam on",
-    "XIN_LOI": "Xin loi",
-    "AN": "An",
-    "UONG": "Uong"
-}
+# Sau khi chap nhan 1 ky tu
+# phai bo tay ra khoi camera moi duoc nhan ky tu tiep theo
+waiting_for_hand_release = False
 
 # =========================================
 # MAIN LOOP
 # =========================================
 
 while True:
+
     ret, frame = cap.read()
 
     if not ret:
-        print("Khong doc duoc frame")
+        print("Khong doc duoc camera")
         break
 
     frame = cv2.flip(frame, 1)
-    display_frame = frame.copy()
 
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    rgb_frame = cv2.cvtColor(
+        frame,
+        cv2.COLOR_BGR2RGB
+    )
+
     results = hands.process(rgb_frame)
 
     current_prediction = ""
     current_confidence = 0.0
 
-    if cooldown_counter > 0:
-        cooldown_counter -= 1
+    # =====================================
+    # HAND DETECTED
+    # =====================================
 
-    # =========================================
-    # HAND DETECTION + FEATURE EXTRACTION
-    # =========================================
     if results.multi_hand_landmarks:
+
         hand_landmarks = results.multi_hand_landmarks[0]
 
         mp_drawing.draw_landmarks(
-            display_frame,
+            frame,
             hand_landmarks,
             mp_hands.HAND_CONNECTIONS
         )
 
+        # =================================
+        # FEATURE EXTRACTION
+        # =================================
+
         landmarks = hand_landmarks.landmark
 
-        # Lay wrist (landmark 0) lam goc
         base_x = landmarks[0].x
         base_y = landmarks[0].y
         base_z = landmarks[0].z
@@ -152,162 +121,222 @@ while True:
         features = []
 
         for landmark in landmarks:
+
             x = landmark.x - base_x
             y = landmark.y - base_y
             z = landmark.z - base_z
 
-            features.extend([x, y, z])
+            features.extend([
+                x,
+                y,
+                z
+            ])
 
-        features = np.array(features).reshape(1, -1)
+        features = np.array(
+            features
+        ).reshape(1, -1)
 
-        # =========================================
+        # =================================
         # PREDICT
-        # =========================================
-        predicted_label = model.predict(features)[0]
+        # =================================
+
+        prediction = model.predict(features)[0]
+
+        current_prediction = str(prediction)
 
         if hasattr(model, "predict_proba"):
-            probabilities = model.predict_proba(features)[0]
-            confidence = np.max(probabilities)
+
+            probabilities = model.predict_proba(
+                features
+            )[0]
+
+            current_confidence = float(
+                np.max(probabilities)
+            )
+
         else:
-            confidence = 1.0
 
-        current_prediction = predicted_label
-        current_confidence = confidence
+            current_confidence = 1.0
 
-        # Luu cac du doan gan day de kiem tra on dinh
-        if confidence >= CONFIDENCE_THRESHOLD:
-            recent_predictions.append(predicted_label)
+        # =================================
+        # STABILITY CHECK
+        # =================================
 
-        # =========================================
-        # STABILITY CHECK + ANTI DUPLICATE
-        # =========================================
-        if len(recent_predictions) == STABLE_FRAMES and cooldown_counter == 0:
-            counter = Counter(recent_predictions)
-            most_common_label, count = counter.most_common(1)[0]
+        if (
+            current_confidence >= CONFIDENCE_THRESHOLD
+            and not waiting_for_hand_release
+        ):
 
-            if count >= MIN_STABLE_COUNT:
-                # chi them vao sentence neu khong bi lap lien tiep
-                if most_common_label != last_accepted_sign:
-                    sentence.append(most_common_label)
-                    last_accepted_sign = most_common_label
-                    cooldown_counter = COOLDOWN_FRAMES
+            recent_predictions.append(
+                current_prediction
+            )
+
+            if len(recent_predictions) == STABLE_FRAMES:
+
+                counter = Counter(
+                    recent_predictions
+                )
+
+                label, count = counter.most_common(1)[0]
+
+                if count >= MIN_STABLE_COUNT:
+
+                    text_result += label
+
+                    print(
+                        f"Da them: {label}"
+                    )
+
+                    print(
+                        f"Chuoi hien tai: {text_result}"
+                    )
+
+                    waiting_for_hand_release = True
+
                     recent_predictions.clear()
-                else:
-                    # neu giong ky hieu truoc do, van cooldown de tranh lap
-                    cooldown_counter = COOLDOWN_FRAMES
-                    recent_predictions.clear()
+
+    # =====================================
+    # NO HAND
+    # =====================================
 
     else:
-        # Neu khong thay tay, xoa du doan gan day de tranh nhiu
+
         recent_predictions.clear()
 
-    # =========================================
-    # DISPLAY TEXT
-    # =========================================
+        # Neu da them ky tu truoc do
+        # va nguoi dung bo tay ra
+        # thi cho phep nhan ky tu tiep theo
 
-    # Chuyen sentence sang dang chu dep hon
-    display_sentence = " ".join(DISPLAY_MAP.get(word, word) for word in sentence)
+        if waiting_for_hand_release:
 
-    # Prediction
+            waiting_for_hand_release = False
+
+            print(
+                "Da reset. Co the nhap ky tu tiep theo."
+            )
+
+    # =====================================
+    # DISPLAY
+    # =====================================
+
     cv2.putText(
-        display_frame,
-        f"Prediction: {DISPLAY_MAP.get(current_prediction, current_prediction)}",
-        (20, 35),
+        frame,
+        f"Prediction: {current_prediction}",
+        (20, 40),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.8,
+        1,
         (0, 255, 0),
         2
     )
 
-    # Confidence
     cv2.putText(
-        display_frame,
+        frame,
         f"Confidence: {current_confidence * 100:.2f}%",
-        (20, 70),
+        (20, 80),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
+        0.8,
         (255, 255, 0),
         2
     )
 
-    # Cooldown
     cv2.putText(
-        display_frame,
-        f"Cooldown: {cooldown_counter}",
-        (20, 105),
+        frame,
+        "Text:",
+        (20, 130),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
-        (0, 165, 255),
-        2
-    )
-
-    # Huong dan phim
-    cv2.putText(
-        display_frame,
-        "Press C: Clear | Press B: Backspace | Press Q: Quit",
-        (20, 140),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
-        (200, 200, 200),
-        2
-    )
-
-    # Sentence title
-    cv2.putText(
-        display_frame,
-        "Sentence:",
-        (20, 190),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.9,
+        0.8,
         (255, 255, 255),
         2
     )
 
-    # Sentence content
     cv2.putText(
-        display_frame,
-        display_sentence,
-        (20, 230),
+        frame,
+        text_result,
+        (20, 175),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.9,
+        1.2,
         (0, 255, 255),
+        3
+    )
+
+    if waiting_for_hand_release:
+
+        status = "REMOVE HAND TO CONTINUE"
+
+        status_color = (0, 0, 255)
+
+    else:
+
+        status = "READY"
+
+        status_color = (0, 255, 0)
+
+    cv2.putText(
+        frame,
+        status,
+        (20, 220),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.7,
+        status_color,
         2
     )
 
-    cv2.imshow("Realtime Sign Language Recognition", display_frame)
+    cv2.putText(
+        frame,
+        "C: Clear | B: Backspace | Q: Quit",
+        (20, 260),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        (255, 255, 255),
+        2
+    )
 
-    # =========================================
+    cv2.imshow(
+        "Sign Language Realtime Recognition",
+        frame
+    )
+
+    # =====================================
     # KEYBOARD
-    # =========================================
+    # =====================================
+
     key = cv2.waitKey(1) & 0xFF
 
-    # q = quit
+    # Q = Quit
     if key == ord("q"):
+
         break
 
-    # c = clear sentence
+    # C = Clear
     elif key == ord("c"):
-        sentence.clear()
-        last_accepted_sign = ""
-        recent_predictions.clear()
-        cooldown_counter = 0
-        print("Da xoa cau.")
 
-    # b = xoa tu/cu ky hieu cuoi
+        text_result = ""
+
+        recent_predictions.clear()
+
+        waiting_for_hand_release = False
+
+        print("Da xoa toan bo chuoi.")
+
+    # B = Backspace
     elif key == ord("b"):
-        if len(sentence) > 0:
-            sentence.pop()
-            if len(sentence) > 0:
-                last_accepted_sign = sentence[-1]
-            else:
-                last_accepted_sign = ""
-            print("Da xoa ky hieu cuoi.")
+
+        if len(text_result) > 0:
+
+            text_result = text_result[:-1]
+
+            print(
+                f"Chuoi sau khi xoa: {text_result}"
+            )
 
 # =========================================
 # CLEANUP
 # =========================================
 
 cap.release()
+
 hands.close()
+
 cv2.destroyAllWindows()
+
 print("Da dong chuong trinh.")
