@@ -3,7 +3,10 @@ import cv2
 import joblib
 import numpy as np
 import mediapipe as mp
+import pyttsx3
+
 from collections import deque, Counter
+
 
 # =========================================
 # CONFIG
@@ -15,6 +18,7 @@ CONFIDENCE_THRESHOLD = 0.80
 STABLE_FRAMES = 10
 MIN_STABLE_COUNT = 8
 
+
 # =========================================
 # CHECK MODEL
 # =========================================
@@ -25,11 +29,37 @@ if not os.path.exists(MODEL_PATH):
     print("python training/train_model.py")
     exit()
 
+
 print("Dang tai model...")
 
 model = joblib.load(MODEL_PATH)
 
 print("Tai model thanh cong!")
+
+
+# =========================================
+# TEXT TO SPEECH
+# =========================================
+
+engine = pyttsx3.init()
+
+# Toc do doc
+engine.setProperty("rate", 150)
+
+# Am luong
+engine.setProperty("volume", 1.0)
+
+
+def speak_text(text):
+    if not text.strip():
+        print("Khong co noi dung de doc.")
+        return
+
+    print(f"Dang doc: {text}")
+
+    engine.say(text)
+    engine.runAndWait()
+
 
 # =========================================
 # MEDIAPIPE
@@ -45,6 +75,7 @@ hands = mp_hands.Hands(
     min_tracking_confidence=0.5
 )
 
+
 # =========================================
 # CAMERA
 # =========================================
@@ -55,20 +86,23 @@ if not cap.isOpened():
     print("Khong the mo camera")
     exit()
 
+
 # =========================================
 # VARIABLES
 # =========================================
 
-recent_predictions = deque(maxlen=STABLE_FRAMES)
+recent_predictions = deque(
+    maxlen=STABLE_FRAMES
+)
 
 text_result = ""
 
 current_prediction = ""
+
 current_confidence = 0.0
 
-# Sau khi chap nhan 1 ky tu
-# phai bo tay ra khoi camera moi duoc nhan ky tu tiep theo
 waiting_for_hand_release = False
+
 
 # =========================================
 # MAIN LOOP
@@ -89,10 +123,14 @@ while True:
         cv2.COLOR_BGR2RGB
     )
 
-    results = hands.process(rgb_frame)
+    results = hands.process(
+        rgb_frame
+    )
 
     current_prediction = ""
+
     current_confidence = 0.0
+
 
     # =====================================
     # HAND DETECTED
@@ -100,7 +138,8 @@ while True:
 
     if results.multi_hand_landmarks:
 
-        hand_landmarks = results.multi_hand_landmarks[0]
+        hand_landmarks = \
+            results.multi_hand_landmarks[0]
 
         mp_drawing.draw_landmarks(
             frame,
@@ -108,11 +147,13 @@ while True:
             mp_hands.HAND_CONNECTIONS
         )
 
+
         # =================================
         # FEATURE EXTRACTION
         # =================================
 
-        landmarks = hand_landmarks.landmark
+        landmarks = \
+            hand_landmarks.landmark
 
         base_x = landmarks[0].x
         base_y = landmarks[0].y
@@ -132,52 +173,72 @@ while True:
                 z
             ])
 
+
         features = np.array(
             features
         ).reshape(1, -1)
+
 
         # =================================
         # PREDICT
         # =================================
 
-        prediction = model.predict(features)[0]
+        prediction = \
+            model.predict(features)[0]
 
-        current_prediction = str(prediction)
+        current_prediction = \
+            str(prediction)
 
-        if hasattr(model, "predict_proba"):
 
-            probabilities = model.predict_proba(
-                features
-            )[0]
+        if hasattr(
+            model,
+            "predict_proba"
+        ):
+
+            probabilities = \
+                model.predict_proba(
+                    features
+                )[0]
 
             current_confidence = float(
-                np.max(probabilities)
+                np.max(
+                    probabilities
+                )
             )
 
         else:
 
             current_confidence = 1.0
 
+
         # =================================
         # STABILITY CHECK
         # =================================
 
         if (
-            current_confidence >= CONFIDENCE_THRESHOLD
-            and not waiting_for_hand_release
+            current_confidence
+            >= CONFIDENCE_THRESHOLD
+            and
+            not waiting_for_hand_release
         ):
 
             recent_predictions.append(
                 current_prediction
             )
 
-            if len(recent_predictions) == STABLE_FRAMES:
+
+            if (
+                len(recent_predictions)
+                == STABLE_FRAMES
+            ):
 
                 counter = Counter(
                     recent_predictions
                 )
 
-                label, count = counter.most_common(1)[0]
+                label, count = \
+                    counter.most_common(1)[0]
+
 
                 if count >= MIN_STABLE_COUNT:
 
@@ -188,12 +249,14 @@ while True:
                     )
 
                     print(
-                        f"Chuoi hien tai: {text_result}"
+                        f"Text hien tai: "
+                        f"{text_result}"
                     )
 
                     waiting_for_hand_release = True
 
                     recent_predictions.clear()
+
 
     # =====================================
     # NO HAND
@@ -203,17 +266,15 @@ while True:
 
         recent_predictions.clear()
 
-        # Neu da them ky tu truoc do
-        # va nguoi dung bo tay ra
-        # thi cho phep nhan ky tu tiep theo
-
         if waiting_for_hand_release:
 
             waiting_for_hand_release = False
 
             print(
-                "Da reset. Co the nhap ky tu tiep theo."
+                "Da reset. "
+                "Co the nhap ky tu tiep."
             )
+
 
     # =====================================
     # DISPLAY
@@ -221,7 +282,8 @@ while True:
 
     cv2.putText(
         frame,
-        f"Prediction: {current_prediction}",
+        f"Prediction: "
+        f"{current_prediction}",
         (20, 40),
         cv2.FONT_HERSHEY_SIMPLEX,
         1,
@@ -229,15 +291,18 @@ while True:
         2
     )
 
+
     cv2.putText(
         frame,
-        f"Confidence: {current_confidence * 100:.2f}%",
+        f"Confidence: "
+        f"{current_confidence * 100:.2f}%",
         (20, 80),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.8,
         (255, 255, 0),
         2
     )
+
 
     cv2.putText(
         frame,
@@ -249,27 +314,33 @@ while True:
         2
     )
 
+
     cv2.putText(
         frame,
         text_result,
         (20, 175),
         cv2.FONT_HERSHEY_SIMPLEX,
-        1.2,
+        1.1,
         (0, 255, 255),
         3
     )
 
+
     if waiting_for_hand_release:
 
-        status = "REMOVE HAND TO CONTINUE"
+        status = \
+            "REMOVE HAND TO CONTINUE"
 
-        status_color = (0, 0, 255)
+        status_color = \
+            (0, 0, 255)
 
     else:
 
         status = "READY"
 
-        status_color = (0, 255, 0)
+        status_color = \
+            (0, 255, 0)
+
 
     cv2.putText(
         frame,
@@ -281,9 +352,10 @@ while True:
         2
     )
 
+
     cv2.putText(
         frame,
-        "C: Clear | B: Backspace | Q: Quit",
+        "SPACE: Add space",
         (20, 260),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.6,
@@ -291,10 +363,34 @@ while True:
         2
     )
 
+
+    cv2.putText(
+        frame,
+        "B: Backspace | C: Clear",
+        (20, 290),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        (255, 255, 255),
+        2
+    )
+
+
+    cv2.putText(
+        frame,
+        "P: Speak | Q: Quit",
+        (20, 320),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        (255, 255, 255),
+        2
+    )
+
+
     cv2.imshow(
-        "Sign Language Realtime Recognition",
+        "Sign Language Recognition",
         frame
     )
+
 
     # =====================================
     # KEYBOARD
@@ -302,12 +398,14 @@ while True:
 
     key = cv2.waitKey(1) & 0xFF
 
+
     # Q = Quit
     if key == ord("q"):
 
         break
 
-    # C = Clear
+
+    # C = Clear all
     elif key == ord("c"):
 
         text_result = ""
@@ -316,18 +414,53 @@ while True:
 
         waiting_for_hand_release = False
 
-        print("Da xoa toan bo chuoi.")
+        print(
+            "Da xoa toan bo noi dung."
+        )
+
 
     # B = Backspace
     elif key == ord("b"):
 
         if len(text_result) > 0:
 
-            text_result = text_result[:-1]
+            text_result = \
+                text_result[:-1]
 
             print(
-                f"Chuoi sau khi xoa: {text_result}"
+                f"Text hien tai: "
+                f"{text_result}"
             )
+
+
+    # SPACE = add space
+    elif key == 32:
+
+        if (
+            len(text_result) > 0
+            and
+            not text_result.endswith(" ")
+        ):
+
+            text_result += " "
+
+            print(
+                f"Da them khoang trang."
+            )
+
+            print(
+                f"Text hien tai: "
+                f"{text_result}"
+            )
+
+
+    # P = Speak
+    elif key == ord("p"):
+
+        speak_text(
+            text_result
+        )
+
 
 # =========================================
 # CLEANUP
@@ -339,4 +472,8 @@ hands.close()
 
 cv2.destroyAllWindows()
 
-print("Da dong chuong trinh.")
+engine.stop()
+
+print(
+    "Da dong chuong trinh."
+)
