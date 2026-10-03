@@ -51,6 +51,7 @@ mp_drawing = mp.solutions.drawing_utils
 hands = mp_hands.Hands(
     static_image_mode=False,
     max_num_hands=1,
+    model_complexity=0,
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5
 )
@@ -60,13 +61,35 @@ hands = mp_hands.Hands(
 # CAMERA
 # =========================================
 
-camera = cv2.VideoCapture(0)
+camera = cv2.VideoCapture(
+    0,
+    cv2.CAP_DSHOW
+)
+
+camera.set(
+    cv2.CAP_PROP_FRAME_WIDTH,
+    640
+)
+
+camera.set(
+    cv2.CAP_PROP_FRAME_HEIGHT,
+    480
+)
+
+camera.set(
+    cv2.CAP_PROP_FPS,
+    30
+)
+
+camera.set(
+    cv2.CAP_PROP_BUFFERSIZE,
+    1
+)
 
 if not camera.isOpened():
     raise RuntimeError(
         "Khong the mo camera"
     )
-
 
 # =========================================
 # VARIABLES
@@ -123,6 +146,236 @@ def generate_frames():
     global current_confidence
     global confirmed_character
     global waiting_for_hand_release
+
+    frame_count = 0
+
+    while True:
+
+        success, frame = camera.read()
+
+        if not success:
+            print("Khong doc duoc frame")
+            continue
+
+        frame = cv2.flip(
+            frame,
+            1
+        )
+
+        frame_count += 1
+
+        # Chỉ chạy AI mỗi 3 frame
+        run_ai = (
+            frame_count % 3 == 0
+        )
+
+        if run_ai:
+
+            rgb_frame = cv2.cvtColor(
+                frame,
+                cv2.COLOR_BGR2RGB
+            )
+
+            rgb_frame.flags.writeable = False
+
+            results = hands.process(
+                rgb_frame
+            )
+
+            rgb_frame.flags.writeable = True
+
+
+            if results.multi_hand_landmarks:
+
+                hand_landmarks = (
+                    results.multi_hand_landmarks[0]
+                )
+
+                mp_drawing.draw_landmarks(
+                    frame,
+                    hand_landmarks,
+                    mp_hands.HAND_CONNECTIONS
+                )
+
+                features = extract_features(
+                    hand_landmarks
+                )
+
+                if len(features) == 63:
+
+                    features_array = np.array(
+                        features,
+                        dtype=np.float32
+                    ).reshape(1, -1)
+
+                    prediction = model.predict(
+                        features_array
+                    )[0]
+
+                    if hasattr(
+                        model,
+                        "predict_proba"
+                    ):
+
+                        probabilities = (
+                            model.predict_proba(
+                                features_array
+                            )[0]
+                        )
+
+                        confidence = float(
+                            np.max(
+                                probabilities
+                            )
+                        )
+
+                    else:
+
+                        confidence = 1.0
+
+
+                    with lock:
+
+                        current_prediction = str(
+                            prediction
+                        )
+
+                        current_confidence = (
+                            confidence
+                        )
+
+
+                    if (
+                        confidence
+                        >= CONFIDENCE_THRESHOLD
+                        and
+                        not waiting_for_hand_release
+                    ):
+
+                        recent_predictions.append(
+                            str(prediction)
+                        )
+
+                        if (
+                            len(recent_predictions)
+                            == STABLE_FRAMES
+                        ):
+
+                            counter = Counter(
+                                recent_predictions
+                            )
+
+                            label, count = (
+                                counter
+                                .most_common(1)[0]
+                            )
+
+                            if (
+                                count
+                                >= MIN_STABLE_COUNT
+                            ):
+
+                                with lock:
+
+                                    confirmed_character = (
+                                        label
+                                    )
+
+                                    waiting_for_hand_release = (
+                                        True
+                                    )
+
+                                recent_predictions.clear()
+
+            else:
+
+                recent_predictions.clear()
+
+                with lock:
+
+                    current_prediction = ""
+                    current_confidence = 0.0
+
+                    if waiting_for_hand_release:
+
+                        waiting_for_hand_release = (
+                            False
+                        )
+
+
+        # =====================================
+        # CAMERA TEXT
+        # =====================================
+
+        with lock:
+
+            display_prediction = (
+                current_prediction
+            )
+
+            display_confidence = (
+                current_confidence
+            )
+
+
+        cv2.putText(
+            frame,
+            f"Prediction: {display_prediction}",
+            (20, 40),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0, 255, 0),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            (
+                f"Confidence: "
+                f"{display_confidence * 100:.1f}%"
+            ),
+            (20, 75),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 0),
+            2
+        )
+
+
+        # =====================================
+        # JPEG ENCODE
+        # =====================================
+
+        encode_param = [
+            int(
+                cv2.IMWRITE_JPEG_QUALITY
+            ),
+            75
+        ]
+
+        ret, buffer = cv2.imencode(
+            ".jpg",
+            frame,
+            encode_param
+        )
+
+        if not ret:
+            continue
+
+        frame_bytes = (
+            buffer.tobytes()
+        )
+
+
+        yield (
+            b"--frame\r\n"
+            b"Content-Type: image/jpeg\r\n\r\n"
+            + frame_bytes
+            + b"\r\n"
+        )
+
+
+
 
     while True:
 
