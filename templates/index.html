@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+
+<html lang="vi">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Sign Language AI
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}"
+    >
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+    <header class="header">
+
+        <div>
+
+            <h1>
+                Sign Language AI
+            </h1>
+
+            <p>
+                Nhận diện ký hiệu tay tĩnh bằng MediaPipe và Random Forest
+            </p>
+
+        </div>
+
+
+        <div class="online">
+
+            <span class="dot"></span>
+
+            Camera Online
+
+        </div>
+
+    </header>
+
+
+    <main class="main-grid">
+
+        <!-- CAMERA -->
+
+        <section class="card">
+
+            <h2>
+                Camera realtime
+            </h2>
+
+            <p>
+                Đưa tay vào camera để nhận diện chữ cái
+            </p>
+
+
+            <div class="camera-container">
+
+                <img
+                    src="{{ url_for('video_feed') }}"
+                    alt="Camera"
+                >
+
+            </div>
+
+        </section>
+
+
+        <!-- RESULT -->
+
+        <section class="card">
+
+            <h2>
+                Kết quả nhận diện
+            </h2>
+
+
+            <div class="result-block">
+
+                <label>
+                    Chữ cái hiện tại
+                </label>
+
+                <div
+                    id="prediction"
+                    class="action-value"
+                >
+                    ---
+                </div>
+
+            </div>
+
+
+            <div class="result-block">
+
+                <label>
+                    Độ tin cậy
+                </label>
+
+
+                <div class="confidence-row">
+
+                    <div class="progress">
+
+                        <div
+                            id="progressBar"
+                            class="progress-bar"
+                        >
+                        </div>
+
+                    </div>
+
+
+                    <span
+                        id="confidence"
+                    >
+                        0%
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="result-block">
+
+                <label>
+                    Chữ đã xác nhận
+                </label>
+
+                <div
+                    id="confirmed"
+                    class="confirmed-value"
+                >
+                    ---
+                </div>
+
+            </div>
+
+
+            <button
+                class="button button-primary"
+                onclick="addCharacter()"
+            >
+                Thêm chữ
+            </button>
+
+        </section>
+
+    </main>
+
+
+    <!-- TEXT -->
+
+    <section class="card text-card">
+
+        <h2>
+            Văn bản
+        </h2>
+
+
+        <div
+            id="textResult"
+            class="sentence"
+        >
+            Chưa có nội dung
+        </div>
+
+
+        <div class="buttons">
+
+            <button
+                class="button"
+                onclick="addSpace()"
+            >
+                Space
+            </button>
+
+
+            <button
+                class="button"
+                onclick="deleteLast()"
+            >
+                ⌫ Xóa
+            </button>
+
+
+            <button
+                class="button button-speak"
+                onclick="speakText()"
+            >
+                🔊 Đọc
+            </button>
+
+
+            <button
+                class="button button-danger"
+                onclick="clearText()"
+            >
+                Xóa tất cả
+            </button>
+
+        </div>
+
+    </section>
+
+
+</div>
+
+
+<script>
+
+    async function updateStatus() {
+
+        const response =
+            await fetch("/status");
+
+        const data =
+            await response.json();
+
+
+        document
+            .getElementById(
+                "prediction"
+            )
+            .innerText =
+            data.prediction || "---";
+
+
+        document
+            .getElementById(
+                "confirmed"
+            )
+            .innerText =
+            data.confirmed || "---";
+
+
+        const confidence =
+            Number(
+                data.confidence || 0
+            );
+
+
+        document
+            .getElementById(
+                "confidence"
+            )
+            .innerText =
+            confidence.toFixed(1)
+            + "%";
+
+
+        document
+            .getElementById(
+                "progressBar"
+            )
+            .style.width =
+            confidence + "%";
+
+
+        document
+            .getElementById(
+                "textResult"
+            )
+            .innerText =
+            data.text
+            ||
+            "Chưa có nội dung";
+
+    }
+
+
+    async function addCharacter() {
+
+        await fetch(
+            "/add_character",
+            {
+                method: "POST"
+            }
+        );
+
+        updateStatus();
+
+    }
+
+
+    async function addSpace() {
+
+        await fetch(
+            "/add_space",
+            {
+                method: "POST"
+            }
+        );
+
+        updateStatus();
+
+    }
+
+
+    async function deleteLast() {
+
+        await fetch(
+            "/delete_last",
+            {
+                method: "POST"
+            }
+        );
+
+        updateStatus();
+
+    }
+
+
+    async function clearText() {
+
+        await fetch(
+            "/clear",
+            {
+                method: "POST"
+            }
+        );
+
+        window
+            .speechSynthesis
+            .cancel();
+
+        updateStatus();
+
+    }
+
+
+    function speakText() {
+
+        const text =
+            document
+            .getElementById(
+                "textResult"
+            )
+            .innerText;
+
+
+        if (
+            !text
+            ||
+            text ===
+            "Chưa có nội dung"
+        ) {
+
+            return;
+
+        }
+
+
+        window
+            .speechSynthesis
+            .cancel();
+
+
+        const speech =
+            new SpeechSynthesisUtterance(
+                text
+            );
+
+
+        speech.lang =
+            "vi-VN";
+
+        speech.rate =
+            0.9;
+
+
+        window
+            .speechSynthesis
+            .speak(
+                speech
+            );
+
+    }
+
+
+    setInterval(
+        updateStatus,
+        300
+    );
+
+
+    updateStatus();
+
+</script>
+
+
+</body>
+
+</html>

@@ -1,4 +1,539 @@
-.{
-    color: aliceblue;
-    cursor: pointer;
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+
+body {
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background:
+        #f3f4f6;
+
+    color:
+        #111827;
+}
+
+
+.container {
+    max-width:
+        1250px;
+
+    margin:
+        auto;
+
+    padding:
+        25px;
+}
+
+
+/* ===========================
+   HEADER
+=========================== */
+
+.header {
+    background:
+        #ffffff;
+
+    padding:
+        24px 28px;
+
+    border-radius:
+        16px;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        space-between;
+
+    margin-bottom:
+        22px;
+
+    box-shadow:
+        0 6px 25px
+        rgba(
+            0,
+            0,
+            0,
+            0.06
+        );
+}
+
+
+.header h1 {
+    font-size:
+        30px;
+
+    margin-bottom:
+        6px;
+}
+
+
+.header p {
+    color:
+        #6b7280;
+}
+
+
+.online {
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        8px;
+
+    background:
+        #dcfce7;
+
+    color:
+        #15803d;
+
+    font-size:
+        13px;
+
+    font-weight:
+        bold;
+
+    padding:
+        9px 14px;
+
+    border-radius:
+        30px;
+}
+
+
+.dot {
+    width:
+        9px;
+
+    height:
+        9px;
+
+    border-radius:
+        50%;
+
+    background:
+        #22c55e;
+}
+
+
+/* ===========================
+   GRID
+=========================== */
+
+.main-grid {
+    display:
+        grid;
+
+    grid-template-columns:
+        2fr 1fr;
+
+    gap:
+        22px;
+}
+
+
+/* ===========================
+   CARDS
+=========================== */
+
+.card {
+    background:
+        white;
+
+    border-radius:
+        16px;
+
+    padding:
+        22px;
+
+    box-shadow:
+        0 6px 25px
+        rgba(
+            0,
+            0,
+            0,
+            0.06
+        );
+}
+
+
+.card h2 {
+    margin-bottom:
+        7px;
+}
+
+
+.card p {
+    color:
+        #6b7280;
+
+    font-size:
+        14px;
+}
+
+
+/* ===========================
+   CAMERA
+=========================== */
+
+.card-header {
+    margin-bottom:
+        16px;
+}
+
+
+.camera-container {
+    width:
+        100%;
+
+    aspect-ratio:
+        4 / 3;
+
+    background:
+        #111827;
+
+    border-radius:
+        13px;
+
+    overflow:
+        hidden;
+}
+
+
+.camera-container img {
+    width:
+        100%;
+
+    height:
+        100%;
+
+    object-fit:
+        cover;
+
+    display:
+        block;
+}
+
+
+/* ===========================
+   RESULT
+=========================== */
+
+.recognition-card h2 {
+    margin-bottom:
+        25px;
+}
+
+
+.result-block {
+    margin-bottom:
+        28px;
+}
+
+
+.result-block label {
+    display:
+        block;
+
+    color:
+        #6b7280;
+
+    font-size:
+        14px;
+
+    margin-bottom:
+        10px;
+}
+
+
+.action-value {
+    color:
+        #2563eb;
+
+    font-weight:
+        bold;
+
+    font-size:
+        30px;
+}
+
+
+.confirmed-value {
+    color:
+        #059669;
+
+    font-weight:
+        bold;
+
+    font-size:
+        25px;
+}
+
+
+/* ===========================
+   CONFIDENCE
+=========================== */
+
+.confidence-row {
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        12px;
+}
+
+
+.progress {
+    flex:
+        1;
+
+    height:
+        12px;
+
+    background:
+        #e5e7eb;
+
+    border-radius:
+        30px;
+
+    overflow:
+        hidden;
+}
+
+
+.progress-bar {
+    width:
+        0%;
+
+    height:
+        100%;
+
+    background:
+        #2563eb;
+
+    transition:
+        width
+        0.25s
+        ease;
+}
+
+
+.confidence-value {
+    min-width:
+        55px;
+
+    font-weight:
+        bold;
+}
+
+
+/* ===========================
+   TEXT
+=========================== */
+
+.text-card {
+    margin-top:
+        22px;
+}
+
+
+.text-header {
+    margin-bottom:
+        16px;
+}
+
+
+.sentence {
+    min-height:
+        110px;
+
+    padding:
+        20px;
+
+    border:
+        1px solid
+        #e5e7eb;
+
+    border-radius:
+        12px;
+
+    background:
+        #f9fafb;
+
+    font-size:
+        25px;
+
+    line-height:
+        1.5;
+
+    margin-bottom:
+        18px;
+}
+
+
+/* ===========================
+   BUTTONS
+=========================== */
+
+.buttons {
+    display:
+        flex;
+
+    gap:
+        10px;
+
+    flex-wrap:
+        wrap;
+}
+
+
+.button {
+    border:
+        none;
+
+    border-radius:
+        9px;
+
+    padding:
+        12px 18px;
+
+    background:
+        #e5e7eb;
+
+    color:
+        #111827;
+
+    cursor:
+        pointer;
+
+    font-weight:
+        bold;
+
+    transition:
+        0.2s;
+}
+
+
+.button:hover {
+    opacity:
+        0.85;
+
+    transform:
+        translateY(-1px);
+}
+
+
+.button-primary {
+    width:
+        100%;
+
+    background:
+        #2563eb;
+
+    color:
+        white;
+}
+
+
+.button-speak {
+    background:
+        #059669;
+
+    color:
+        white;
+}
+
+
+.button-danger {
+    background:
+        #dc2626;
+
+    color:
+        white;
+}
+
+
+/* ===========================
+   FOOTER
+=========================== */
+
+footer {
+    padding:
+        25px 5px;
+
+    text-align:
+        center;
+
+    color:
+        #9ca3af;
+
+    font-size:
+        13px;
+}
+
+
+/* ===========================
+   RESPONSIVE
+=========================== */
+
+@media (
+    max-width: 900px
+) {
+
+    .main-grid {
+        grid-template-columns:
+            1fr;
+    }
+
+}
+
+
+@media (
+    max-width: 600px
+) {
+
+    .container {
+        padding:
+            12px;
+    }
+
+
+    .header {
+        flex-direction:
+            column;
+
+        align-items:
+            flex-start;
+
+        gap:
+            15px;
+    }
+
+
+    .buttons {
+        flex-direction:
+            column;
+    }
+
+
+    .button {
+        width:
+            100%;
+    }
+
 }
