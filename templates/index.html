@@ -1,9 +1,7 @@
 <!DOCTYPE html>
-
 <html lang="vi">
 
 <head>
-
     <meta charset="UTF-8">
 
     <meta
@@ -11,15 +9,12 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>
-        Sign Language AI
-    </title>
+    <title>Sign Language AI</title>
 
     <link
         rel="stylesheet"
         href="{{ url_for('static', filename='css/style.css') }}"
     >
-
 </head>
 
 
@@ -27,52 +22,90 @@
 
 <div class="container">
 
+    <!-- ===============================
+         HEADER
+    ================================ -->
+
     <header class="header">
 
         <div>
-
-            <h1>
-                Sign Language AI
-            </h1>
+            <h1>Sign Language AI</h1>
 
             <p>
-                Nhận diện ký hiệu tay tĩnh bằng MediaPipe và Random Forest
+                Nhận diện ký hiệu tay bằng
+                MediaPipe, Random Forest và LSTM
             </p>
-
         </div>
 
-
         <div class="online">
-
             <span class="dot"></span>
-
             Camera Online
-
         </div>
 
     </header>
 
 
+    <!-- ===============================
+         CHỌN CHẾ ĐỘ
+    ================================ -->
+
+    <section class="card mode-card">
+
+        <h2>Chế độ nhận diện</h2>
+
+        <div class="mode-selector">
+
+            <button
+                id="staticButton"
+                class="mode-button active"
+                onclick="setMode('static')"
+            >
+                Chữ cái tĩnh
+            </button>
+
+            <button
+                id="dynamicButton"
+                class="mode-button"
+                onclick="setMode('dynamic')"
+            >
+                Ký hiệu động
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <!-- ===============================
+         CAMERA + RESULT
+    ================================ -->
+
     <main class="main-grid">
+
 
         <!-- CAMERA -->
 
-        <section class="card">
+        <section class="card camera-card">
 
-            <h2>
-                Camera realtime
-            </h2>
+            <div class="card-header">
 
-            <p>
-                Đưa tay vào camera để nhận diện chữ cái
-            </p>
+                <div>
+                    <h2>Camera realtime</h2>
+
+                    <p id="cameraInstruction">
+                        Đưa tay vào camera để nhận diện chữ cái
+                    </p>
+                </div>
+
+            </div>
 
 
             <div class="camera-container">
 
                 <img
+                    id="camera"
                     src="{{ url_for('video_feed') }}"
-                    alt="Camera"
+                    alt="Camera realtime"
                 >
 
             </div>
@@ -82,18 +115,32 @@
 
         <!-- RESULT -->
 
-        <section class="card">
+        <section class="card recognition-card">
 
-            <h2>
-                Kết quả nhận diện
-            </h2>
+            <h2>Kết quả nhận diện</h2>
 
+
+            <!-- MODE -->
 
             <div class="result-block">
 
-                <label>
-                    Chữ cái hiện tại
-                </label>
+                <label>Chế độ hiện tại</label>
+
+                <div
+                    id="mode"
+                    class="mode-value"
+                >
+                    Chữ cái tĩnh
+                </div>
+
+            </div>
+
+
+            <!-- PREDICTION -->
+
+            <div class="result-block">
+
+                <label>Kết quả hiện tại</label>
 
                 <div
                     id="prediction"
@@ -105,12 +152,11 @@
             </div>
 
 
+            <!-- CONFIDENCE -->
+
             <div class="result-block">
 
-                <label>
-                    Độ tin cậy
-                </label>
-
+                <label>Độ tin cậy</label>
 
                 <div class="confidence-row">
 
@@ -124,9 +170,9 @@
 
                     </div>
 
-
                     <span
                         id="confidence"
+                        class="confidence-value"
                     >
                         0%
                     </span>
@@ -136,11 +182,27 @@
             </div>
 
 
+            <!-- SEQUENCE -->
+
+            <div
+                id="sequenceBlock"
+                class="result-block hidden"
+            >
+
+                <label>Sequence</label>
+
+                <div id="sequence">
+                    0 / 30
+                </div>
+
+            </div>
+
+
+            <!-- CONFIRMED -->
+
             <div class="result-block">
 
-                <label>
-                    Chữ đã xác nhận
-                </label>
+                <label>Kết quả đã xác nhận</label>
 
                 <div
                     id="confirmed"
@@ -153,10 +215,11 @@
 
 
             <button
+                id="addResultButton"
                 class="button button-primary"
-                onclick="addCharacter()"
+                onclick="addResult()"
             >
-                Thêm chữ
+                Thêm vào văn bản
             </button>
 
         </section>
@@ -164,13 +227,24 @@
     </main>
 
 
-    <!-- TEXT -->
+    <!-- ===============================
+         TEXT
+    ================================ -->
 
     <section class="card text-card">
 
-        <h2>
-            Văn bản
-        </h2>
+        <div class="text-header">
+
+            <div>
+                <h2>Văn bản</h2>
+
+                <p>
+                    Nội dung được chuyển đổi
+                    từ ký hiệu
+                </p>
+            </div>
+
+        </div>
 
 
         <div
@@ -184,28 +258,26 @@
         <div class="buttons">
 
             <button
+                id="spaceButton"
                 class="button"
                 onclick="addSpace()"
             >
                 Space
             </button>
 
-
             <button
                 class="button"
                 onclick="deleteLast()"
             >
-                ⌫ Xóa
+                Xóa ký tự cuối
             </button>
-
 
             <button
                 class="button button-speak"
                 onclick="speakText()"
             >
-                🔊 Đọc
+                Đọc văn bản
             </button>
-
 
             <button
                 class="button button-danger"
@@ -219,190 +291,14 @@
     </section>
 
 
+    <footer>
+        MediaPipe • Random Forest • LSTM • TensorFlow • Flask
+    </footer>
+
 </div>
 
 
-<script>
-
-    async function updateStatus() {
-
-        const response =
-            await fetch("/status");
-
-        const data =
-            await response.json();
-
-
-        document
-            .getElementById(
-                "prediction"
-            )
-            .innerText =
-            data.prediction || "---";
-
-
-        document
-            .getElementById(
-                "confirmed"
-            )
-            .innerText =
-            data.confirmed || "---";
-
-
-        const confidence =
-            Number(
-                data.confidence || 0
-            );
-
-
-        document
-            .getElementById(
-                "confidence"
-            )
-            .innerText =
-            confidence.toFixed(1)
-            + "%";
-
-
-        document
-            .getElementById(
-                "progressBar"
-            )
-            .style.width =
-            confidence + "%";
-
-
-        document
-            .getElementById(
-                "textResult"
-            )
-            .innerText =
-            data.text
-            ||
-            "Chưa có nội dung";
-
-    }
-
-
-    async function addCharacter() {
-
-        await fetch(
-            "/add_character",
-            {
-                method: "POST"
-            }
-        );
-
-        updateStatus();
-
-    }
-
-
-    async function addSpace() {
-
-        await fetch(
-            "/add_space",
-            {
-                method: "POST"
-            }
-        );
-
-        updateStatus();
-
-    }
-
-
-    async function deleteLast() {
-
-        await fetch(
-            "/delete_last",
-            {
-                method: "POST"
-            }
-        );
-
-        updateStatus();
-
-    }
-
-
-    async function clearText() {
-
-        await fetch(
-            "/clear",
-            {
-                method: "POST"
-            }
-        );
-
-        window
-            .speechSynthesis
-            .cancel();
-
-        updateStatus();
-
-    }
-
-
-    function speakText() {
-
-        const text =
-            document
-            .getElementById(
-                "textResult"
-            )
-            .innerText;
-
-
-        if (
-            !text
-            ||
-            text ===
-            "Chưa có nội dung"
-        ) {
-
-            return;
-
-        }
-
-
-        window
-            .speechSynthesis
-            .cancel();
-
-
-        const speech =
-            new SpeechSynthesisUtterance(
-                text
-            );
-
-
-        speech.lang =
-            "vi-VN";
-
-        speech.rate =
-            0.9;
-
-
-        window
-            .speechSynthesis
-            .speak(
-                speech
-            );
-
-    }
-
-
-    setInterval(
-        updateStatus,
-        300
-    );python
-
-
-    updateStatus();
-
-</script>
-
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
 </body>
 
