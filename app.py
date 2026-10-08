@@ -1,12 +1,12 @@
 import os
 import json
 import threading
+
 from collections import deque, Counter
 
 import cv2
 import joblib
 import numpy as np
-import mediapipe as mp
 
 from flask import (
     Flask,
@@ -16,8 +16,23 @@ from flask import (
     request
 )
 
+from tensorflow.keras.models import (
+    load_model,
+    Sequential
+)
 
-from tensorflow.keras.models import load_model
+from tensorflow.keras.layers import (
+    Input,
+    LSTM,
+    Dropout,
+    Dense
+)
+
+from src.hand_detector import HandDetector
+
+from src.feature_extractor import (
+    extract_features
+)
 
 
 # =========================================================
@@ -31,7 +46,9 @@ app = Flask(__name__)
 # CONFIG
 # =========================================================
 
-STATIC_MODEL_PATH = "models/sign_model.pkl"
+STATIC_MODEL_PATH = (
+    "models/sign_model.pkl"
+)
 
 DYNAMIC_MODEL_PATH = (
     "models/dynamic_sign_lstm.keras"
@@ -42,67 +59,97 @@ DYNAMIC_LABEL_PATH = (
 )
 
 
-# STATIC
+# =========================================================
+# STATIC CONFIG
+# =========================================================
+
 STATIC_CONFIDENCE = 0.80
+
 STATIC_STABLE_FRAMES = 10
+
 STATIC_MIN_COUNT = 8
 
 
-# DYNAMIC
+# =========================================================
+# DYNAMIC CONFIG
+# =========================================================
+
 SEQUENCE_LENGTH = 30
 
 DYNAMIC_CONFIDENCE = 0.80
 
 DYNAMIC_STABLE_RESULTS = 5
+
 DYNAMIC_MIN_COUNT = 4
+
+
+# =========================================================
+# CAMERA CONFIG
+# =========================================================
+
+CAMERA_WIDTH = 480
+
+CAMERA_HEIGHT = 360
+
+CAMERA_FPS = 30
+
+JPEG_QUALITY = 65
+
+
+# Chạy MediaPipe + AI mỗi 2 frame
+AI_FRAME_SKIP = 2
+
+
+# =========================================================
+# CHECK FILES
+# =========================================================
+
+if not os.path.exists(
+    STATIC_MODEL_PATH
+):
+
+    raise FileNotFoundError(
+        f"Khong tim thay: {STATIC_MODEL_PATH}"
+    )
+
+
+if not os.path.exists(
+    DYNAMIC_MODEL_PATH
+):
+
+    raise FileNotFoundError(
+        f"Khong tim thay: {DYNAMIC_MODEL_PATH}"
+    )
+
+
+if not os.path.exists(
+    DYNAMIC_LABEL_PATH
+):
+
+    raise FileNotFoundError(
+        f"Khong tim thay: {DYNAMIC_LABEL_PATH}"
+    )
 
 
 # =========================================================
 # LOAD STATIC MODEL
 # =========================================================
 
-if not os.path.exists(
-    STATIC_MODEL_PATH
-):
-
-    raise FileNotFoundError(
-        STATIC_MODEL_PATH
-    )
-
-
-print("Dang tai Random Forest...")
+print(
+    "Dang tai Random Forest..."
+)
 
 static_model = joblib.load(
     STATIC_MODEL_PATH
 )
 
-print("Random Forest OK")
-
-
-# =========================================================
-# LOAD DYNAMIC MODEL
-# =========================================================
-
-if not os.path.exists(
-    DYNAMIC_MODEL_PATH
-):
-
-    raise FileNotFoundError(
-        DYNAMIC_MODEL_PATH
-    )
-
-
-print("Dang tai LSTM...")
-
-dynamic_model = load_model(
-    DYNAMIC_MODEL_PATH
+print(
+    "Random Forest OK"
 )
 
-print("LSTM OK")
-
 
 # =========================================================
-# LOAD DYNAMIC LABEL
+# LOAD DYNAMIC LABELS
 # =========================================================
 
 with open(
@@ -116,7 +163,9 @@ with open(
     )
 
 
-print("Dynamic labels:")
+print(
+    "Dynamic labels:"
+)
 
 for index, label in (
     dynamic_labels.items()
@@ -130,27 +179,110 @@ for index, label in (
 
 
 # =========================================================
-# MEDIAPIPE
+# LOAD DYNAMIC MODEL
 # =========================================================
 
-mp_hands = mp.solutions.hands
+def create_dynamic_model():
 
-mp_drawing = (
-    mp.solutions.drawing_utils
+    return Sequential([
+
+        Input(
+            shape=(
+                SEQUENCE_LENGTH,
+                63
+            )
+        ),
+
+        LSTM(
+            128,
+            return_sequences=True
+        ),
+
+        Dropout(
+            0.3
+        ),
+
+        LSTM(
+            64
+        ),
+
+        Dropout(
+            0.3
+        ),
+
+        Dense(
+            64,
+            activation="relu"
+        ),
+
+        Dropout(
+            0.2
+        ),
+
+        Dense(
+            len(dynamic_labels),
+            activation="softmax"
+        )
+    ])
+
+
+print(
+    "Dang tai LSTM..."
 )
 
 
-hands = mp_hands.Hands(
+try:
 
-    static_image_mode=False,
+    # Thử load model bình thường
+    dynamic_model = load_model(
+        DYNAMIC_MODEL_PATH,
+        compile=False
+    )
 
-    max_num_hands=1,
+    print(
+        "LSTM load_model OK"
+    )
 
-    model_complexity=0,
 
-    min_detection_confidence=0.5,
+except Exception as error:
 
-    min_tracking_confidence=0.5
+    print(
+        "Khong load duoc config model cu."
+    )
+
+    print(
+        "Chuyen sang load weights..."
+    )
+
+    print(
+        "Chi tiet:",
+        error
+    )
+
+
+    dynamic_model = (
+        create_dynamic_model()
+    )
+
+
+    dynamic_model.load_weights(
+        DYNAMIC_MODEL_PATH
+    )
+
+
+    print(
+        "LSTM load_weights OK"
+    )
+
+
+# =========================================================
+# HAND DETECTOR
+# =========================================================
+
+hand_detector = HandDetector(
+    max_num_hands=2,
+    detection_confidence=0.5,
+    tracking_confidence=0.5
 )
 
 
@@ -166,17 +298,17 @@ camera = cv2.VideoCapture(
 
 camera.set(
     cv2.CAP_PROP_FRAME_WIDTH,
-    640
+    CAMERA_WIDTH
 )
 
 camera.set(
     cv2.CAP_PROP_FRAME_HEIGHT,
-    480
+    CAMERA_HEIGHT
 )
 
 camera.set(
     cv2.CAP_PROP_FPS,
-    30
+    CAMERA_FPS
 )
 
 camera.set(
@@ -200,19 +332,28 @@ lock = threading.Lock()
 
 
 # Chế độ mặc định
-recognition_mode = "static"
+recognition_mode = (
+    "static"
+)
 
 
-# Kết quả hiện tại
+# Prediction hiện tại
 current_prediction = ""
 
 current_confidence = 0.0
 
+
+# Kết quả vừa xác nhận
 confirmed_result = ""
 
 
-# Văn bản
+# Câu kết quả
 text_result = ""
+
+
+# Sau khi nhận thành công
+# phải bỏ tay ra rồi mới nhận tiếp
+waiting_for_release = False
 
 
 # =========================================================
@@ -223,8 +364,6 @@ static_predictions = deque(
     maxlen=STATIC_STABLE_FRAMES
 )
 
-waiting_for_release = False
-
 
 # =========================================================
 # DYNAMIC STATE
@@ -233,6 +372,7 @@ waiting_for_release = False
 dynamic_sequence = deque(
     maxlen=SEQUENCE_LENGTH
 )
+
 
 dynamic_results = deque(
     maxlen=DYNAMIC_STABLE_RESULTS
@@ -250,11 +390,11 @@ def format_dynamic_label(label):
         "XIN_CHAO":
             "Xin chào",
 
-        "CAM_ON":
-            "Cảm ơn",
-
         "XIN_LOI":
             "Xin lỗi",
+
+        "CAM_ON":
+            "Cảm ơn",
 
         "GIUP_DO":
             "Giúp đỡ",
@@ -280,6 +420,7 @@ def format_dynamic_label(label):
 
 
     if not label:
+
         return ""
 
 
@@ -288,48 +429,12 @@ def format_dynamic_label(label):
         label,
 
         label
-        .replace("_", " ")
+        .replace(
+            "_",
+            " "
+        )
         .title()
     )
-
-
-# =========================================================
-# LANDMARK → 63 FEATURES
-# =========================================================
-
-def extract_features(
-    hand_landmarks
-):
-
-    landmarks = (
-        hand_landmarks.landmark
-    )
-
-
-    base_x = landmarks[0].x
-
-    base_y = landmarks[0].y
-
-    base_z = landmarks[0].z
-
-
-    features = []
-
-
-    for landmark in landmarks:
-
-        features.extend([
-
-            landmark.x - base_x,
-
-            landmark.y - base_y,
-
-            landmark.z - base_z
-
-        ])
-
-
-    return features
 
 
 # =========================================================
@@ -342,7 +447,12 @@ def process_static(features):
     global current_confidence
     global confirmed_result
     global waiting_for_release
+    global text_result
 
+
+    # =====================================================
+    # INPUT
+    # =====================================================
 
     data = np.array(
         features,
@@ -353,6 +463,10 @@ def process_static(features):
     )
 
 
+    # =====================================================
+    # PREDICTION
+    # =====================================================
+
     prediction = (
         static_model.predict(
             data
@@ -360,16 +474,22 @@ def process_static(features):
     )
 
 
+    # =====================================================
+    # CONFIDENCE
+    # =====================================================
+
     if hasattr(
         static_model,
         "predict_proba"
     ):
 
         probabilities = (
-            static_model.predict_proba(
+            static_model
+            .predict_proba(
                 data
             )[0]
         )
+
 
         confidence = float(
             np.max(
@@ -382,6 +502,10 @@ def process_static(features):
         confidence = 1.0
 
 
+    # =====================================================
+    # CURRENT RESULT
+    # =====================================================
+
     with lock:
 
         current_prediction = str(
@@ -393,56 +517,93 @@ def process_static(features):
         )
 
 
-    # =====================================
-    # STABILITY
-    # =====================================
+    # =====================================================
+    # ĐÃ NHẬN RỒI -> CHỜ BỎ TAY
+    # =====================================================
+
+    if waiting_for_release:
+
+        return
+
+
+    # =====================================================
+    # CONFIDENCE CHECK
+    # =====================================================
 
     if (
         confidence
         >= STATIC_CONFIDENCE
-        and
-        not waiting_for_release
     ):
 
         static_predictions.append(
-            str(prediction)
+            str(
+                prediction
+            )
+        )
+
+    else:
+
+        static_predictions.clear()
+
+        return
+
+
+    # =====================================================
+    # STABILITY
+    # =====================================================
+
+    if (
+        len(
+            static_predictions
+        )
+        == STATIC_STABLE_FRAMES
+    ):
+
+        counter = Counter(
+            static_predictions
+        )
+
+
+        label, count = (
+            counter
+            .most_common(1)[0]
         )
 
 
         if (
-            len(static_predictions)
-            == STATIC_STABLE_FRAMES
+            count
+            >= STATIC_MIN_COUNT
         ):
 
-            counter = Counter(
-                static_predictions
-            )
+            with lock:
 
-
-            label, count = (
-                counter
-                .most_common(1)[0]
-            )
-
-
-            if (
-                count
-                >= STATIC_MIN_COUNT
-            ):
-
-                with lock:
-
-                    confirmed_result = (
-                        label
-                    )
-
-
-                waiting_for_release = (
-                    True
+                confirmed_result = (
+                    label
                 )
 
 
-                static_predictions.clear()
+                # =========================================
+                # TỰ ĐỘNG THÊM CHỮ
+                # =========================================
+
+                text_result += (
+                    label
+                )
+
+
+            print(
+                "Tu dong them chu:",
+                label
+            )
+
+
+            # Chặn việc thêm AAAAA...
+            waiting_for_release = (
+                True
+            )
+
+
+            static_predictions.clear()
 
 
 # =========================================================
@@ -454,7 +615,22 @@ def process_dynamic(features):
     global current_prediction
     global current_confidence
     global confirmed_result
+    global waiting_for_release
+    global text_result
 
+
+    # =====================================================
+    # ĐÃ NHẬN -> CHỜ BỎ TAY
+    # =====================================================
+
+    if waiting_for_release:
+
+        return
+
+
+    # =====================================================
+    # ADD FRAME
+    # =====================================================
 
     dynamic_sequence.append(
         features
@@ -463,12 +639,18 @@ def process_dynamic(features):
 
     # Chưa đủ 30 frame
     if (
-        len(dynamic_sequence)
+        len(
+            dynamic_sequence
+        )
         < SEQUENCE_LENGTH
     ):
 
         return
 
+
+    # =====================================================
+    # PREPARE LSTM INPUT
+    # =====================================================
 
     input_data = np.array(
         dynamic_sequence,
@@ -481,6 +663,10 @@ def process_dynamic(features):
         axis=0
     )
 
+
+    # =====================================================
+    # PREDICTION
+    # =====================================================
 
     probabilities = (
         dynamic_model.predict(
@@ -505,9 +691,15 @@ def process_dynamic(features):
 
 
     label = dynamic_labels[
-        str(predicted_index)
+        str(
+            predicted_index
+        )
     ]
 
+
+    # =====================================================
+    # CURRENT RESULT
+    # =====================================================
 
     with lock:
 
@@ -520,9 +712,9 @@ def process_dynamic(features):
         )
 
 
-    # =====================================
-    # STABILITY
-    # =====================================
+    # =====================================================
+    # CONFIDENCE
+    # =====================================================
 
     if (
         confidence
@@ -537,9 +729,17 @@ def process_dynamic(features):
 
         dynamic_results.clear()
 
+        return
+
+
+    # =====================================================
+    # STABILITY
+    # =====================================================
 
     if (
-        len(dynamic_results)
+        len(
+            dynamic_results
+        )
         == DYNAMIC_STABLE_RESULTS
     ):
 
@@ -559,11 +759,57 @@ def process_dynamic(features):
             >= DYNAMIC_MIN_COUNT
         ):
 
+            word = (
+                format_dynamic_label(
+                    stable_label
+                )
+            )
+
+
             with lock:
 
                 confirmed_result = (
                     stable_label
                 )
+
+
+                # =========================================
+                # TỰ ĐỘNG THÊM TỪ
+                # =========================================
+
+                if text_result:
+
+                    if not (
+                        text_result
+                        .endswith(
+                            " "
+                        )
+                    ):
+
+                        text_result += (
+                            " "
+                        )
+
+
+                text_result += (
+                    word
+                )
+
+
+            print(
+                "Tu dong them tu:",
+                word
+            )
+
+
+            waiting_for_release = (
+                True
+            )
+
+
+            dynamic_sequence.clear()
+
+            dynamic_results.clear()
 
 
 # =========================================================
@@ -577,7 +823,27 @@ def generate_frames():
     global waiting_for_release
 
 
+    # =====================================================
+    # PERFORMANCE STATE
+    # =====================================================
+
+    frame_count = 0
+
+
+    # Kết quả MediaPipe gần nhất
+    last_results = None
+
+
+    left_hand = None
+
+    right_hand = None
+
+
     while True:
+
+        # =================================================
+        # READ CAMERA
+        # =================================================
 
         success, frame = (
             camera.read()
@@ -595,107 +861,197 @@ def generate_frames():
         )
 
 
-        rgb_frame = cv2.cvtColor(
-            frame,
-            cv2.COLOR_BGR2RGB
+        frame_count += 1
+
+
+        # =================================================
+        # CHỈ CHẠY AI MỖI 2 FRAME
+        # =================================================
+
+        run_ai = (
+
+            frame_count
+            % AI_FRAME_SKIP
+
+            == 0
         )
 
 
-        rgb_frame.flags.writeable = (
-            False
-        )
+        # =================================================
+        # AI
+        # =================================================
 
+        if run_ai:
 
-        results = hands.process(
-            rgb_frame
-        )
+            # =============================================
+            # MEDIAPIPE
+            # =============================================
 
-
-        rgb_frame.flags.writeable = (
-            True
-        )
-
-
-        # =====================================
-        # HAND
-        # =====================================
-
-        if results.multi_hand_landmarks:
-
-            hand_landmarks = (
-                results
-                .multi_hand_landmarks[0]
+            last_results = (
+                hand_detector.detect(
+                    frame
+                )
             )
 
 
-            mp_drawing.draw_landmarks(
+            # =============================================
+            # LEFT / RIGHT
+            # =============================================
 
-                frame,
-
-                hand_landmarks,
-
-                mp_hands.HAND_CONNECTIONS
-
+            hands_data = (
+                hand_detector.get_hands(
+                    last_results
+                )
             )
 
 
-            features = extract_features(
-                hand_landmarks
+            left_hand = (
+                hands_data[
+                    "Left"
+                ]
             )
 
 
-            if len(features) == 63:
+            right_hand = (
+                hands_data[
+                    "Right"
+                ]
+            )
+
+
+            # =============================================
+            # CHECK HAND
+            # =============================================
+
+            has_hand = (
+
+                left_hand
+                is not None
+
+                or
+
+                right_hand
+                is not None
+            )
+
+
+            # =============================================
+            # HAND DETECTED
+            # =============================================
+
+            if has_hand:
+
+                # =================================================
+                # MODEL HIỆN TẠI VẪN LÀ 1 TAY / 63 FEATURES
+                # =================================================
+
+                # Ưu tiên Right
+                # Không có thì dùng Left
+
+                hand_landmarks = (
+
+                    right_hand
+
+                    if (
+                        right_hand
+                        is not None
+                    )
+
+                    else
+
+                    left_hand
+                )
+
+
+                features = (
+                    extract_features(
+                        hand_landmarks
+                    )
+                )
+
 
                 if (
-                    recognition_mode
-                    == "static"
+                    len(features)
+                    == 63
                 ):
 
-                    process_static(
-                        features
+                    # =========================================
+                    # STATIC
+                    # =========================================
+
+                    if (
+                        recognition_mode
+                        == "static"
+                    ):
+
+                        process_static(
+                            features
+                        )
+
+
+                    # =========================================
+                    # DYNAMIC
+                    # =========================================
+
+                    elif (
+                        recognition_mode
+                        == "dynamic"
+                    ):
+
+                        process_dynamic(
+                            features
+                        )
+
+
+            # =============================================
+            # NO HAND
+            # =============================================
+
+            else:
+
+                static_predictions.clear()
+
+                dynamic_sequence.clear()
+
+                dynamic_results.clear()
+
+
+                with lock:
+
+                    current_prediction = ""
+
+                    current_confidence = (
+                        0.0
                     )
 
 
-                elif (
-                    recognition_mode
-                    == "dynamic"
-                ):
-
-                    process_dynamic(
-                        features
-                    )
-
-
-        # =====================================
-        # NO HAND
-        # =====================================
-
-        else:
-
-            static_predictions.clear()
-
-            dynamic_sequence.clear()
-
-            dynamic_results.clear()
-
-
-            with lock:
-
-                current_prediction = ""
-
-                current_confidence = 0.0
-
-
-            if recognition_mode == "static":
+                # =========================================
+                # BỎ TAY RA -> CHO PHÉP NHẬN TIẾP
+                # =========================================
 
                 waiting_for_release = (
                     False
                 )
 
 
-        # =====================================
-        # CAMERA TEXT
-        # =====================================
+        # =================================================
+        # DRAW LAST LANDMARKS
+        # =================================================
+
+        if (
+            last_results
+            is not None
+        ):
+
+            hand_detector.draw_hands(
+                frame,
+                last_results
+            )
+
+
+        # =================================================
+        # DISPLAY DATA
+        # =================================================
 
         with lock:
 
@@ -708,6 +1064,10 @@ def generate_frames():
             )
 
 
+        # =================================================
+        # MODE
+        # =================================================
+
         if (
             recognition_mode
             == "dynamic"
@@ -719,6 +1079,7 @@ def generate_frames():
                 )
             )
 
+
             mode_text = (
                 "DYNAMIC - LSTM"
             )
@@ -729,70 +1090,95 @@ def generate_frames():
                 prediction
             )
 
+
             mode_text = (
                 "STATIC - RANDOM FOREST"
             )
 
 
+        # =================================================
+        # HAND COUNT
+        # =================================================
+
+        hand_count = 0
+
+
+        if (
+            left_hand
+            is not None
+        ):
+
+            hand_count += 1
+
+
+        if (
+            right_hand
+            is not None
+        ):
+
+            hand_count += 1
+
+
+        # =================================================
+        # DRAW TEXT
+        # =================================================
+
         cv2.putText(
-
             frame,
-
             mode_text,
-
-            (20, 35),
-
+            (20, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
-
-            0.6,
-
+            0.55,
             (255, 255, 255),
-
             2
         )
 
 
         cv2.putText(
-
             frame,
-
             (
                 f"Prediction: "
                 f"{display_prediction}"
             ),
-
-            (20, 70),
-
+            (20, 60),
             cv2.FONT_HERSHEY_SIMPLEX,
-
-            0.75,
-
+            0.65,
             (0, 255, 0),
-
             2
         )
 
 
         cv2.putText(
-
             frame,
-
             (
                 f"Confidence: "
                 f"{confidence * 100:.1f}%"
             ),
-
-            (20, 105),
-
+            (20, 90),
             cv2.FONT_HERSHEY_SIMPLEX,
-
-            0.65,
-
+            0.55,
             (255, 255, 0),
-
             2
         )
 
+
+        cv2.putText(
+            frame,
+            (
+                f"Hands: "
+                f"{hand_count}/2"
+            ),
+            (20, 120),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (255, 255, 255),
+            2
+        )
+
+
+        # =================================================
+        # DYNAMIC SEQUENCE
+        # =================================================
 
         if (
             recognition_mode
@@ -800,43 +1186,38 @@ def generate_frames():
         ):
 
             cv2.putText(
-
                 frame,
-
                 (
                     f"Sequence: "
                     f"{len(dynamic_sequence)}"
                     f"/{SEQUENCE_LENGTH}"
                 ),
-
-                (20, 140),
-
+                (20, 150),
                 cv2.FONT_HERSHEY_SIMPLEX,
-
-                0.6,
-
+                0.55,
                 (255, 255, 255),
-
                 2
             )
 
 
-        # =====================================
+        # =================================================
         # JPEG
-        # =====================================
+        # =================================================
 
-        ret, buffer = cv2.imencode(
+        ret, buffer = (
+            cv2.imencode(
 
-            ".jpg",
+                ".jpg",
 
-            frame,
+                frame,
 
-            [
-                int(
-                    cv2.IMWRITE_JPEG_QUALITY
-                ),
-                75
-            ]
+                [
+                    int(
+                        cv2.IMWRITE_JPEG_QUALITY
+                    ),
+                    JPEG_QUALITY
+                ]
+            )
         )
 
 
@@ -849,6 +1230,10 @@ def generate_frames():
             buffer.tobytes()
         )
 
+
+        # =================================================
+        # STREAM
+        # =================================================
 
         yield (
 
@@ -878,7 +1263,9 @@ def index():
 # VIDEO
 # =========================================================
 
-@app.route("/video_feed")
+@app.route(
+    "/video_feed"
+)
 def video_feed():
 
     return Response(
@@ -898,7 +1285,9 @@ def video_feed():
 
 @app.route(
     "/set_mode",
-    methods=["POST"]
+    methods=[
+        "POST"
+    ]
 )
 def set_mode():
 
@@ -909,7 +1298,18 @@ def set_mode():
     global waiting_for_release
 
 
-    data = request.get_json()
+    data = request.get_json(
+        silent=True
+    )
+
+
+    if not data:
+
+        return jsonify({
+
+            "success":
+                False
+        })
 
 
     mode = data.get(
@@ -923,13 +1323,17 @@ def set_mode():
     ]:
 
         return jsonify({
-            "success": False
+
+            "success":
+                False
         })
 
 
     with lock:
 
-        recognition_mode = mode
+        recognition_mode = (
+            mode
+        )
 
         current_prediction = ""
 
@@ -944,14 +1348,19 @@ def set_mode():
 
     dynamic_results.clear()
 
-    waiting_for_release = False
+
+    waiting_for_release = (
+        False
+    )
 
 
     return jsonify({
 
-        "success": True,
+        "success":
+            True,
 
-        "mode": mode
+        "mode":
+            mode
     })
 
 
@@ -959,7 +1368,9 @@ def set_mode():
 # STATUS
 # =========================================================
 
-@app.route("/status")
+@app.route(
+    "/status"
+)
 def status():
 
     with lock:
@@ -973,7 +1384,14 @@ def status():
         )
 
 
-        if recognition_mode == "dynamic":
+        # =========================================
+        # DYNAMIC DISPLAY
+        # =========================================
+
+        if (
+            recognition_mode
+            == "dynamic"
+        ):
 
             prediction = (
                 format_dynamic_label(
@@ -1012,78 +1430,11 @@ def status():
             "sequence":
                 len(
                     dynamic_sequence
-                )
+                ),
+
+            "waiting":
+                waiting_for_release
         })
-
-
-# =========================================================
-# ADD RESULT
-# =========================================================
-
-@app.route(
-    "/add_result",
-    methods=["POST"]
-)
-def add_result():
-
-    global text_result
-    global confirmed_result
-
-
-    with lock:
-
-        if not confirmed_result:
-
-            return jsonify({
-                "success": False
-            })
-
-
-        # STATIC: ghép chữ
-        if recognition_mode == "static":
-
-            text_result += (
-                confirmed_result
-            )
-
-
-        # DYNAMIC: ghép từ
-        else:
-
-            word = (
-                format_dynamic_label(
-                    confirmed_result
-                )
-            )
-
-
-            if text_result:
-
-                if not (
-                    text_result.endswith(
-                        " "
-                    )
-                ):
-
-                    text_result += " "
-
-
-            text_result += word
-
-
-        confirmed_result = ""
-
-
-    static_predictions.clear()
-
-    dynamic_results.clear()
-
-    dynamic_sequence.clear()
-
-
-    return jsonify({
-        "success": True
-    })
 
 
 # =========================================================
@@ -1092,7 +1443,9 @@ def add_result():
 
 @app.route(
     "/add_space",
-    methods=["POST"]
+    methods=[
+        "POST"
+    ]
 )
 def add_space():
 
@@ -1103,27 +1456,35 @@ def add_space():
 
         if (
             text_result
+
             and
+
             not text_result.endswith(
                 " "
             )
         ):
 
-            text_result += " "
+            text_result += (
+                " "
+            )
 
 
     return jsonify({
-        "success": True
+
+        "success":
+            True
     })
 
 
 # =========================================================
-# DELETE
+# DELETE LAST
 # =========================================================
 
 @app.route(
     "/delete_last",
-    methods=["POST"]
+    methods=[
+        "POST"
+    ]
 )
 def delete_last():
 
@@ -1140,7 +1501,9 @@ def delete_last():
 
 
     return jsonify({
-        "success": True
+
+        "success":
+            True
     })
 
 
@@ -1150,12 +1513,17 @@ def delete_last():
 
 @app.route(
     "/clear",
-    methods=["POST"]
+    methods=[
+        "POST"
+    ]
 )
 def clear():
 
     global text_result
     global confirmed_result
+    global current_prediction
+    global current_confidence
+    global waiting_for_release
 
 
     with lock:
@@ -1163,6 +1531,12 @@ def clear():
         text_result = ""
 
         confirmed_result = ""
+
+        current_prediction = ""
+
+        current_confidence = (
+            0.0
+        )
 
 
     static_predictions.clear()
@@ -1172,9 +1546,40 @@ def clear():
     dynamic_results.clear()
 
 
+    waiting_for_release = (
+        False
+    )
+
+
     return jsonify({
-        "success": True
+
+        "success":
+            True
     })
+
+
+# =========================================================
+# CLEANUP
+# =========================================================
+
+def cleanup():
+
+    try:
+
+        camera.release()
+
+    except Exception:
+
+        pass
+
+
+    try:
+
+        hand_detector.close()
+
+    except Exception:
+
+        pass
 
 
 # =========================================================
@@ -1183,14 +1588,19 @@ def clear():
 
 if __name__ == "__main__":
 
-    app.run(
+    try:
 
-        host="127.0.0.1",
+        app.run(
 
-        port=5000,
+            host="127.0.0.1",
 
-        debug=False,
+            port=5000,
 
-        threaded=True
-    )
-    
+            debug=False,
+
+            threaded=True
+        )
+
+    finally:
+
+        cleanup()
