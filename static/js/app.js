@@ -1,43 +1,71 @@
-// ==============================================
-// GLOBAL
-// ==============================================
+// =========================================================
+// GLOBAL STATE
+// =========================================================
 
 let currentMode = "static";
 
+let isChangingMode = false;
 
-// ==============================================
+
+// =========================================================
 // SET MODE
-// ==============================================
+// =========================================================
 
-async function setMode(mode) {
+async function setMode(
+    mode
+) {
+
+    if (isChangingMode) {
+
+        return;
+    }
+
+
+    if (
+        mode !== "static"
+        &&
+        mode !== "dynamic"
+    ) {
+
+        return;
+    }
+
+
+    isChangingMode = true;
+
 
     try {
 
         const response = await fetch(
             "/set_mode",
             {
+
                 method: "POST",
 
                 headers: {
+
                     "Content-Type":
                         "application/json"
+
                 },
 
                 body: JSON.stringify({
+
                     mode: mode
+
                 })
+
             }
         );
 
 
-        const data =
-            await response.json();
+        const data = await response.json();
 
 
         if (!data.success) {
 
-            console.error(
-                "Khong the chuyen che do"
+            console.log(
+                "Khong the chuyen mode."
             );
 
             return;
@@ -47,132 +75,128 @@ async function setMode(mode) {
         currentMode = mode;
 
 
-        updateModeUI();
+        updateModeUI(
+            mode
+        );
 
-        await updateStatus();
 
-    }
+        resetStatusUI();
 
-    catch (error) {
+
+    } catch (error) {
 
         console.error(
             "Loi set mode:",
             error
         );
 
+    } finally {
+
+        isChangingMode = false;
+
     }
 
 }
 
 
-// ==============================================
+// =========================================================
 // UPDATE MODE UI
-// ==============================================
+// =========================================================
 
-function updateModeUI() {
+function updateModeUI(
+    mode
+) {
 
-    const staticButton =
+    const staticBtn =
         document.getElementById(
-            "staticButton"
+            "staticBtn"
         );
 
 
-    const dynamicButton =
+    const dynamicBtn =
         document.getElementById(
-            "dynamicButton"
+            "dynamicBtn"
         );
 
 
-    const modeText =
+    const currentModeText =
         document.getElementById(
-            "mode"
+            "currentMode"
         );
 
 
-    const instruction =
+    const description =
         document.getElementById(
-            "cameraInstruction"
+            "modeDescription"
         );
 
 
-    const sequenceBlock =
+    const modelName =
         document.getElementById(
-            "sequenceBlock"
+            "modelName"
         );
 
 
-    const spaceButton =
+    const sequenceContainer =
         document.getElementById(
-            "spaceButton"
+            "sequenceContainer"
         );
 
 
-    // reset active
-    staticButton
-        .classList
-        .remove("active");
+    if (
+        mode === "dynamic"
+    ) {
+
+        staticBtn.classList.remove(
+            "active"
+        );
 
 
-    dynamicButton
-        .classList
-        .remove("active");
+        dynamicBtn.classList.add(
+            "active"
+        );
 
 
-    // ==========================================
-    // STATIC
-    // ==========================================
-
-    if (currentMode === "static") {
-
-        staticButton
-            .classList
-            .add("active");
-
-
-        modeText.innerText =
-            "Chữ cái tĩnh";
-
-
-        instruction.innerText =
-            "Đưa tay vào camera để nhận diện chữ cái";
-
-
-        sequenceBlock
-            .classList
-            .add("hidden");
-
-
-        spaceButton.style.display =
-            "inline-block";
-
-    }
-
-    // ==========================================
-    // DYNAMIC
-    // ==========================================
-
-    else {
-
-        dynamicButton
-            .classList
-            .add("active");
-
-
-        modeText.innerText =
+        currentModeText.innerText =
             "Ký hiệu động";
 
 
-        instruction.innerText =
-            "Thực hiện đầy đủ hành động ký hiệu trước camera";
+        modelName.innerText =
+            "LSTM";
 
 
-        sequenceBlock
-            .classList
-            .remove("hidden");
+        description.innerText =
+            "LSTM nhận diện chuyển động từ chuỗi 30 frame video.";
 
 
-        // dynamic tự thêm từ có khoảng trắng
-        spaceButton.style.display =
+        sequenceContainer.style.display =
+            "block";
+
+    } else {
+
+        dynamicBtn.classList.remove(
+            "active"
+        );
+
+
+        staticBtn.classList.add(
+            "active"
+        );
+
+
+        currentModeText.innerText =
+            "Ký hiệu tĩnh";
+
+
+        modelName.innerText =
+            "Random Forest";
+
+
+        description.innerText =
+            "Random Forest nhận diện ký hiệu tĩnh từ landmark bàn tay.";
+
+
+        sequenceContainer.style.display =
             "none";
 
     }
@@ -180,172 +204,217 @@ function updateModeUI() {
 }
 
 
-// ==============================================
-// STATUS
-// ==============================================
+// =========================================================
+// RESET STATUS UI
+// =========================================================
+
+function resetStatusUI() {
+
+    document.getElementById(
+        "prediction"
+    ).innerText = "-";
+
+
+    document.getElementById(
+        "confidence"
+    ).innerText = "0%";
+
+
+    document.getElementById(
+        "confirmed"
+    ).innerText = "-";
+
+
+    document.getElementById(
+        "sequence"
+    ).innerText = "0/30";
+
+
+    document.getElementById(
+        "sequenceBar"
+    ).style.width = "0%";
+
+
+    setRecognitionStatus(
+        false
+    );
+
+}
+
+
+// =========================================================
+// UPDATE STATUS
+// =========================================================
 
 async function updateStatus() {
 
     try {
 
-        const response =
-            await fetch(
-                "/status"
-            );
+        const response = await fetch(
+            "/status",
+            {
 
+                cache: "no-store"
 
-        const data =
-            await response.json();
-
-
-        // MODE
-        currentMode =
-            data.mode || "static";
-
-
-        updateModeUI();
-
-
-        // ======================================
-        // PREDICTION
-        // ======================================
-
-        document
-            .getElementById(
-                "prediction"
-            )
-            .innerText =
-            data.prediction
-            || "---";
-
-
-        // ======================================
-        // CONFIRMED
-        // ======================================
-
-        document
-            .getElementById(
-                "confirmed"
-            )
-            .innerText =
-            data.confirmed
-            || "---";
-
-
-        // ======================================
-        // CONFIDENCE
-        // ======================================
-
-        const confidence =
-            Number(
-                data.confidence || 0
-            );
-
-
-        document
-            .getElementById(
-                "confidence"
-            )
-            .innerText =
-            confidence.toFixed(1)
-            + "%";
-
-
-        document
-            .getElementById(
-                "progressBar"
-            )
-            .style.width =
-            confidence + "%";
-
-
-        // ======================================
-        // SEQUENCE
-        // ======================================
-
-        const sequence =
-            Number(
-                data.sequence || 0
-            );
-
-
-        document
-            .getElementById(
-                "sequence"
-            )
-            .innerText =
-            sequence + " / 30";
-
-
-        // ======================================
-        // TEXT
-        // ======================================
-
-        const text =
-            data.text || "";
-
-
-        document
-            .getElementById(
-                "textResult"
-            )
-            .innerText =
-            text.trim()
-            ? text
-            : "Chưa có nội dung";
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Loi update status:",
-            error
+            }
         );
 
-    }
 
-}
+        if (!response.ok) {
 
-
-// ==============================================
-// ADD RESULT
-// ==============================================
-
-async function addResult() {
-
-    try {
-
-        const response =
-            await fetch(
-                "/add_result",
-                {
-                    method: "POST"
-                }
-            );
+            return;
+        }
 
 
         const data =
             await response.json();
 
 
-        if (!data.success) {
+        // =============================================
+        // MODE
+        // =============================================
 
-            console.log(
-                "Chua co ket qua duoc xac nhan"
+        if (
+            data.mode
+            &&
+            data.mode !== currentMode
+        ) {
+
+            currentMode =
+                data.mode;
+
+
+            updateModeUI(
+                currentMode
             );
 
         }
 
 
-        await updateStatus();
+        // =============================================
+        // PREDICTION
+        // =============================================
 
-    }
+        document.getElementById(
+            "prediction"
+        ).innerText =
+            data.prediction || "-";
 
-    catch (error) {
+
+        // =============================================
+        // CONFIDENCE
+        // =============================================
+
+        let confidence = Number(
+            data.confidence || 0
+        );
+
+
+        document.getElementById(
+            "confidence"
+        ).innerText =
+            confidence.toFixed(1)
+            + "%";
+
+
+        // =============================================
+        // CONFIRMED
+        // =============================================
+
+        document.getElementById(
+            "confirmed"
+        ).innerText =
+            data.confirmed || "-";
+
+
+        // =============================================
+        // TEXT
+        // =============================================
+
+        updateResultText(
+            data.text || ""
+        );
+
+
+        // =============================================
+        // DYNAMIC SEQUENCE
+        // =============================================
+
+        if (
+            data.mode === "dynamic"
+        ) {
+
+            const sequence =
+                Number(
+                    data.sequence || 0
+                );
+
+
+            const maxSequence =
+                Number(
+                    data.sequence_length
+                    || 30
+                );
+
+
+            document.getElementById(
+                "sequence"
+            ).innerText =
+                sequence
+                + "/"
+                + maxSequence;
+
+
+            let percent = 0;
+
+
+            if (
+                maxSequence > 0
+            ) {
+
+                percent =
+                    (
+                        sequence
+                        /
+                        maxSequence
+                    )
+                    * 100;
+
+            }
+
+
+            if (
+                percent > 100
+            ) {
+
+                percent = 100;
+
+            }
+
+
+            document.getElementById(
+                "sequenceBar"
+            ).style.width =
+                percent + "%";
+
+        }
+
+
+        // =============================================
+        // WAIT STATUS
+        // =============================================
+
+        setRecognitionStatus(
+            Boolean(
+                data.waiting
+            )
+        );
+
+
+    } catch (error) {
 
         console.error(
-            "Loi add result:",
+            "Loi lay status:",
             error
         );
 
@@ -354,33 +423,131 @@ async function addResult() {
 }
 
 
-// ==============================================
+// =========================================================
+// UPDATE RESULT TEXT
+// =========================================================
+
+function updateResultText(
+    text
+) {
+
+    const resultText =
+        document.getElementById(
+            "resultText"
+        );
+
+
+    if (
+        text
+        &&
+        text.trim() !== ""
+    ) {
+
+        resultText.innerText =
+            text;
+
+
+        resultText.classList.remove(
+            "placeholder"
+        );
+
+    } else {
+
+        resultText.innerText =
+            "Kết quả sẽ xuất hiện tại đây...";
+
+
+        resultText.classList.add(
+            "placeholder"
+        );
+
+    }
+
+}
+
+
+// =========================================================
+// RECOGNITION STATUS
+// =========================================================
+
+function setRecognitionStatus(
+    waiting
+) {
+
+    const status =
+        document.getElementById(
+            "recognitionStatus"
+        );
+
+
+    if (waiting) {
+
+        status.innerText =
+            "Đã nhận diện - hãy bỏ tay ra để tiếp tục";
+
+
+        status.classList.add(
+            "waiting"
+        );
+
+    } else {
+
+        if (
+            currentMode === "dynamic"
+        ) {
+
+            status.innerText =
+                "Đang thu chuỗi chuyển động...";
+
+        } else {
+
+            status.innerText =
+                "Sẵn sàng nhận diện";
+
+        }
+
+
+        status.classList.remove(
+            "waiting"
+        );
+
+    }
+
+}
+
+
+// =========================================================
 // ADD SPACE
-// ==============================================
+// =========================================================
 
 async function addSpace() {
 
-    // Chỉ dùng cho chữ cái tĩnh
-    if (currentMode !== "static") {
-        return;
-    }
-
-
     try {
 
-        await fetch(
+        const response = await fetch(
             "/add_space",
             {
+
                 method: "POST"
+
             }
         );
 
 
-        await updateStatus();
+        const data =
+            await response.json();
 
-    }
 
-    catch (error) {
+        if (data.success) {
+
+            updateResultText(
+                data.text || ""
+            );
+
+        }
+
+
+    } catch (error) {
 
         console.error(
             "Loi add space:",
@@ -392,27 +559,38 @@ async function addSpace() {
 }
 
 
-// ==============================================
+// =========================================================
 // DELETE LAST
-// ==============================================
+// =========================================================
 
 async function deleteLast() {
 
     try {
 
-        await fetch(
+        const response = await fetch(
             "/delete_last",
             {
+
                 method: "POST"
+
             }
         );
 
 
-        await updateStatus();
+        const data =
+            await response.json();
 
-    }
 
-    catch (error) {
+        if (data.success) {
+
+            updateResultText(
+                data.text || ""
+            );
+
+        }
+
+
+    } catch (error) {
 
         console.error(
             "Loi delete:",
@@ -424,33 +602,41 @@ async function deleteLast() {
 }
 
 
-// ==============================================
-// CLEAR
-// ==============================================
+// =========================================================
+// CLEAR TEXT
+// =========================================================
 
 async function clearText() {
 
     try {
 
-        await fetch(
+        const response = await fetch(
             "/clear",
             {
+
                 method: "POST"
+
             }
         );
 
 
-        // Dừng speech nếu đang đọc
-        window
-            .speechSynthesis
-            .cancel();
+        const data =
+            await response.json();
 
 
-        await updateStatus();
+        if (data.success) {
 
-    }
+            updateResultText(
+                ""
+            );
 
-    catch (error) {
+
+            resetStatusUI();
+
+        }
+
+
+    } catch (error) {
 
         console.error(
             "Loi clear:",
@@ -462,36 +648,59 @@ async function clearText() {
 }
 
 
-// ==============================================
+// =========================================================
 // TEXT TO SPEECH
-// ==============================================
+// =========================================================
 
 function speakText() {
 
-    const element =
+    const resultElement =
         document.getElementById(
-            "textResult"
+            "resultText"
         );
 
 
-    const text =
-        element.innerText.trim();
+    let text =
+        resultElement.innerText;
+
+
+    if (
+        resultElement.classList.contains(
+            "placeholder"
+        )
+    ) {
+
+        return;
+    }
 
 
     if (
         !text
         ||
-        text === "Chưa có nội dung"
+        text.trim() === ""
     ) {
 
         return;
-
     }
 
 
-    window
-        .speechSynthesis
-        .cancel();
+    if (
+        !(
+            "speechSynthesis"
+            in window
+        )
+    ) {
+
+        alert(
+            "Trình duyệt không hỗ trợ đọc văn bản."
+        );
+
+        return;
+    }
+
+
+    // Dừng giọng cũ
+    window.speechSynthesis.cancel();
 
 
     const speech =
@@ -505,86 +714,45 @@ function speakText() {
 
 
     speech.rate =
-        0.9;
+        1.0;
 
 
     speech.pitch =
-        1;
+        1.0;
 
 
     speech.volume =
-        1;
+        1.0;
 
 
-    window
-        .speechSynthesis
-        .speak(
-            speech
-        );
+    window.speechSynthesis.speak(
+        speech
+    );
 
 }
 
 
-// ==============================================
-// KEYBOARD SHORTCUTS
-// ==============================================
+// =========================================================
+// KEYBOARD SHORTCUT
+// =========================================================
 
 document.addEventListener(
     "keydown",
-    function (event) {
+    function (
+        event
+    ) {
 
-        // Không xử lý khi đang gõ input
+        // Ctrl + Backspace
+        // Xóa toàn bộ kết quả
+
         if (
-            event.target.tagName === "INPUT"
-            ||
-            event.target.tagName === "TEXTAREA"
-        ) {
-
-            return;
-
-        }
-
-
-        // ENTER = thêm kết quả
-        if (
-            event.key === "Enter"
-        ) {
-
-            addResult();
-
-        }
-
-
-        // SPACE = khoảng trắng
-        else if (
-            event.code === "Space"
+            event.ctrlKey
             &&
-            currentMode === "static"
-        ) {
-
-            event.preventDefault();
-
-            addSpace();
-
-        }
-
-
-        // BACKSPACE
-        else if (
             event.key === "Backspace"
         ) {
 
             event.preventDefault();
 
-            deleteLast();
-
-        }
-
-
-        // ESC = clear
-        else if (
-            event.key === "Escape"
-        ) {
 
             clearText();
 
@@ -594,23 +762,26 @@ document.addEventListener(
 );
 
 
-// ==============================================
+// =========================================================
 // INITIALIZE
-// ==============================================
+// =========================================================
 
 document.addEventListener(
     "DOMContentLoaded",
     function () {
 
-        updateModeUI();
+        updateModeUI(
+            "static"
+        );
+
 
         updateStatus();
 
 
-        // update 2 lần / giây
+        // Cập nhật khoảng 3 lần / giây
         setInterval(
             updateStatus,
-            500
+            300
         );
 
     }

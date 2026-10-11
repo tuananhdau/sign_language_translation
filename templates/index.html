@@ -9,63 +9,51 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Sign Language AI</title>
+    <title>
+        Nhận diện ngôn ngữ ký hiệu
+    </title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
-    <link
-        rel="stylesheet"
-        href="{{ url_for('static', filename='css/style.css') }}"
-    >
 </head>
 
 
 <body>
 
-<div class="container">
 
-    <!-- ===============================
-         HEADER
-    ================================ -->
+    <header>
 
-    <header class="header">
+        <h1>
+            Hệ thống nhận diện ngôn ngữ ký hiệu
+        </h1>
 
-        <div>
-            <h1>Sign Language AI</h1>
-
-            <p>
-                Nhận diện ký hiệu tay bằng
-                MediaPipe, Random Forest và LSTM
-            </p>
-        </div>
-
-        <div class="online">
-            <span class="dot"></span>
-            Camera Online
-        </div>
+        <p>
+            Random Forest - MediaPipe - LSTM - Flask
+        </p>
 
     </header>
 
 
-    <!-- ===============================
-         CHỌN CHẾ ĐỘ
-    ================================ -->
+    <div class="container">
 
-    <section class="card mode-card">
 
-        <h2>Chế độ nhận diện</h2>
+        <!-- =========================================
+             MODE
+        ========================================== -->
 
-        <div class="mode-selector">
+        <div class="mode-container">
 
             <button
-                id="staticButton"
-                class="mode-button active"
+                id="staticBtn"
+                class="mode-btn active"
                 onclick="setMode('static')"
             >
-                Chữ cái tĩnh
+                Ký hiệu tĩnh
             </button>
 
+
             <button
-                id="dynamicButton"
-                class="mode-button"
+                id="dynamicBtn"
+                class="mode-btn"
                 onclick="setMode('dynamic')"
             >
                 Ký hiệu động
@@ -73,232 +61,250 @@
 
         </div>
 
-    </section>
+
+        <!-- =========================================
+             MAIN
+        ========================================== -->
+
+        <div class="main-grid">
 
 
-    <!-- ===============================
-         CAMERA + RESULT
-    ================================ -->
+            <!-- CAMERA -->
 
-    <main class="main-grid">
+            <div class="card">
+
+                <h2>
+                    Camera
+                </h2>
 
 
-        <!-- CAMERA -->
+                <div class="camera-wrapper">
 
-        <section class="card camera-card">
+                    <img
+                        id="camera"
+                        src="{{ url_for('video_feed') }}"
+                        alt="Camera nhận diện"
+                    >
 
-            <div class="card-header">
+                </div>
 
-                <div>
-                    <h2>Camera realtime</h2>
 
-                    <p id="cameraInstruction">
-                        Đưa tay vào camera để nhận diện chữ cái
+                <div class="info">
+
+                    <p>
+                        <strong>
+                            Chế độ:
+                        </strong>
+
+                        <span id="currentMode">
+                            Ký hiệu tĩnh
+                        </span>
                     </p>
+
+
+                    <p id="modeDescription">
+
+                        Random Forest nhận diện
+                        ký hiệu tĩnh từ landmark bàn tay.
+
+                    </p>
+
                 </div>
 
             </div>
 
 
-            <div class="camera-container">
+            <!-- STATUS -->
 
-                <img
-                    id="camera"
-                    src="{{ url_for('video_feed') }}"
-                    alt="Camera realtime"
-                >
+            <div class="card">
 
-            </div>
-
-        </section>
+                <h2>
+                    Kết quả nhận diện
+                </h2>
 
 
-        <!-- RESULT -->
-
-        <section class="card recognition-card">
-
-            <h2>Kết quả nhận diện</h2>
+                <div class="status-grid">
 
 
-            <!-- MODE -->
+                    <div class="status-box">
 
-            <div class="result-block">
-
-                <label>Chế độ hiện tại</label>
-
-                <div
-                    id="mode"
-                    class="mode-value"
-                >
-                    Chữ cái tĩnh
-                </div>
-
-            </div>
-
-
-            <!-- PREDICTION -->
-
-            <div class="result-block">
-
-                <label>Kết quả hiện tại</label>
-
-                <div
-                    id="prediction"
-                    class="action-value"
-                >
-                    ---
-                </div>
-
-            </div>
-
-
-            <!-- CONFIDENCE -->
-
-            <div class="result-block">
-
-                <label>Độ tin cậy</label>
-
-                <div class="confidence-row">
-
-                    <div class="progress">
+                        <div class="status-label">
+                            Dự đoán
+                        </div>
 
                         <div
-                            id="progressBar"
-                            class="progress-bar"
+                            class="status-value"
+                            id="prediction"
                         >
+                            -
                         </div>
 
                     </div>
 
-                    <span
-                        id="confidence"
-                        class="confidence-value"
-                    >
-                        0%
-                    </span>
+
+                    <div class="status-box">
+
+                        <div class="status-label">
+                            Độ tin cậy
+                        </div>
+
+                        <div
+                            class="status-value"
+                            id="confidence"
+                        >
+                            0%
+                        </div>
+
+                    </div>
+
+
+                    <div class="status-box">
+
+                        <div class="status-label">
+                            Đã xác nhận
+                        </div>
+
+                        <div
+                            class="status-value"
+                            id="confirmed"
+                        >
+                            -
+                        </div>
+
+                    </div>
+
+
+                    <div class="status-box">
+
+                        <div class="status-label">
+                            Mô hình
+                        </div>
+
+                        <div
+                            class="status-value"
+                            id="modelName"
+                        >
+                            Random Forest
+                        </div>
+
+                    </div>
 
                 </div>
 
-            </div>
+
+                <!-- DYNAMIC SEQUENCE -->
+
+                <div id="sequenceContainer">
+
+                    <div class="status-label">
+
+                        Sequence:
+
+                        <strong id="sequence">
+                            0/30
+                        </strong>
+
+                    </div>
 
 
-            <!-- SEQUENCE -->
+                    <div class="progress">
 
-            <div
-                id="sequenceBlock"
-                class="result-block hidden"
-            >
+                        <div
+                            id="sequenceBar"
+                        ></div>
 
-                <label>Sequence</label>
+                    </div>
 
-                <div id="sequence">
-                    0 / 30
                 </div>
 
-            </div>
 
-
-            <!-- CONFIRMED -->
-
-            <div class="result-block">
-
-                <label>Kết quả đã xác nhận</label>
+                <!-- RECOGNITION STATUS -->
 
                 <div
-                    id="confirmed"
-                    class="confirmed-value"
+                    id="recognitionStatus"
+                    class="recognition-status"
                 >
-                    ---
+                    Sẵn sàng nhận diện
                 </div>
 
             </div>
 
+        </div>
 
-            <button
-                id="addResultButton"
-                class="button button-primary"
-                onclick="addResult()"
+
+        <!-- =========================================
+             RESULT TEXT
+        ========================================== -->
+
+        <div class="card result-card">
+
+            <h2>
+                Văn bản nhận diện
+            </h2>
+
+
+            <div
+                id="resultText"
+                class="text-result placeholder"
             >
-                Thêm vào văn bản
-            </button>
-
-        </section>
-
-    </main>
+                Kết quả sẽ xuất hiện tại đây...
+            </div>
 
 
-    <!-- ===============================
-         TEXT
-    ================================ -->
+            <div class="actions">
 
-    <section class="card text-card">
 
-        <div class="text-header">
+                <button
+                    class="action-btn btn-space"
+                    onclick="addSpace()"
+                >
+                    Khoảng trắng
+                </button>
 
-            <div>
-                <h2>Văn bản</h2>
 
-                <p>
-                    Nội dung được chuyển đổi
-                    từ ký hiệu
-                </p>
+                <button
+                    class="action-btn btn-delete"
+                    onclick="deleteLast()"
+                >
+                    Xóa ký tự
+                </button>
+
+
+                <button
+                    class="action-btn btn-speak"
+                    onclick="speakText()"
+                >
+                    Đọc văn bản
+                </button>
+
+
+                <button
+                    class="action-btn btn-clear"
+                    onclick="clearText()"
+                >
+                    Xóa tất cả
+                </button>
+
+
             </div>
 
         </div>
 
 
-        <div
-            id="textResult"
-            class="sentence"
-        >
-            Chưa có nội dung
-        </div>
+    </div>
 
 
-        <div class="buttons">
+    <!-- =========================================
+         APP JS
+    ========================================== -->
 
-            <button
-                id="spaceButton"
-                class="button"
-                onclick="addSpace()"
-            >
-                Space
-            </button>
+    <script
+        src="{{ url_for(
+            'static',
+            filename='js/app.js'
+        ) }}"
+    ></script>
 
-            <button
-                class="button"
-                onclick="deleteLast()"
-            >
-                Xóa ký tự cuối
-            </button>
-
-            <button
-                class="button button-speak"
-                onclick="speakText()"
-            >
-                Đọc văn bản
-            </button>
-
-            <button
-                class="button button-danger"
-                onclick="clearText()"
-            >
-                Xóa tất cả
-            </button>
-
-        </div>
-
-    </section>
-
-
-    <footer>
-        MediaPipe • Random Forest • LSTM • TensorFlow • Flask
-    </footer>
-
-</div>
-
-
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
 </body>
 
