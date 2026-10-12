@@ -11,6 +11,7 @@ from flask import (
     request
 )
 
+
 from src.hand_detector import HandDetector
 
 from src.feature_extractor import (
