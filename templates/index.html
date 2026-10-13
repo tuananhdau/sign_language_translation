@@ -1,7 +1,9 @@
 <!DOCTYPE html>
+
 <html lang="vi">
 
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -10,9 +12,419 @@
     >
 
     <title>
-        Nhận diện ngôn ngữ ký hiệu
+        Sign Language AI
     </title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+
+        body {
+
+            margin: 0;
+
+            font-family:
+                Arial,
+                sans-serif;
+
+            background: #f3f4f6;
+
+            color: #1f2937;
+        }
+
+
+        header {
+
+            background: #111827;
+
+            color: white;
+
+            text-align: center;
+
+            padding: 20px;
+        }
+
+
+        header h1 {
+
+            margin: 0 0 8px;
+
+            font-size: 28px;
+        }
+
+
+        header p {
+
+            margin: 0;
+
+            color: #d1d5db;
+        }
+
+
+        .container {
+
+            width: 95%;
+
+            max-width: 1200px;
+
+            margin: 25px auto;
+        }
+
+
+        .mode-buttons {
+
+            display: flex;
+
+            justify-content: center;
+
+            gap: 15px;
+
+            margin-bottom: 20px;
+        }
+
+
+        .mode-btn {
+
+            border: none;
+
+            border-radius: 8px;
+
+            padding: 12px 24px;
+
+            cursor: pointer;
+
+            font-size: 16px;
+
+            font-weight: bold;
+
+            background: white;
+
+            box-shadow:
+                0 2px 10px
+                rgba(0, 0, 0, 0.1);
+        }
+
+
+        .mode-btn.active {
+
+            background: #2563eb;
+
+            color: white;
+        }
+
+
+        .main-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                1.4fr 1fr;
+
+            gap: 20px;
+        }
+
+
+        .card {
+
+            background: white;
+
+            padding: 20px;
+
+            border-radius: 12px;
+
+            box-shadow:
+                0 3px 12px
+                rgba(0, 0, 0, 0.08);
+        }
+
+
+        .card h2 {
+
+            margin-top: 0;
+        }
+
+
+        .camera {
+
+            background: black;
+
+            border-radius: 10px;
+
+            overflow: hidden;
+        }
+
+
+        .camera img {
+
+            display: block;
+
+            width: 100%;
+
+            height: auto;
+        }
+
+
+        .mode-info {
+
+            margin-top: 15px;
+
+            padding: 14px;
+
+            background: #eff6ff;
+
+            border-left:
+                4px solid #2563eb;
+
+            border-radius: 8px;
+        }
+
+
+        .status-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                1fr 1fr;
+
+            gap: 12px;
+        }
+
+
+        .status-box {
+
+            border:
+                1px solid #e5e7eb;
+
+            border-radius: 8px;
+
+            padding: 13px;
+
+            background: #f9fafb;
+        }
+
+
+        .status-name {
+
+            color: #6b7280;
+
+            font-size: 13px;
+
+            margin-bottom: 5px;
+        }
+
+
+        .status-value {
+
+            font-size: 18px;
+
+            font-weight: bold;
+        }
+
+
+        #confidence {
+
+            color: #2563eb;
+        }
+
+
+        #confirmed {
+
+            color: #059669;
+        }
+
+
+        #sequenceContainer {
+
+            margin-top: 18px;
+        }
+
+
+        .progress {
+
+            height: 15px;
+
+            border-radius: 20px;
+
+            background: #e5e7eb;
+
+            overflow: hidden;
+
+            margin-top: 8px;
+        }
+
+
+        #sequenceBar {
+
+            height: 100%;
+
+            width: 0;
+
+            background: #2563eb;
+
+            transition:
+                width 0.15s;
+        }
+
+
+        .recognition-status {
+
+            margin-top: 15px;
+
+            padding: 12px;
+
+            border-radius: 8px;
+
+            text-align: center;
+
+            font-weight: bold;
+
+            color: #047857;
+
+            background: #ecfdf5;
+        }
+
+
+        .recognition-status.waiting {
+
+            color: #c2410c;
+
+            background: #fff7ed;
+        }
+
+
+        .result-card {
+
+            margin-top: 20px;
+        }
+
+
+        #resultText {
+
+            min-height: 100px;
+
+            border:
+                2px solid #e5e7eb;
+
+            background: #fafafa;
+
+            border-radius: 10px;
+
+            padding: 16px;
+
+            font-size: 24px;
+
+            line-height: 1.5;
+
+            word-break: break-word;
+        }
+
+
+        #resultText.placeholder {
+
+            color: #9ca3af;
+        }
+
+
+        .actions {
+
+            display: flex;
+
+            flex-wrap: wrap;
+
+            gap: 10px;
+
+            margin-top: 15px;
+        }
+
+
+        .action-btn {
+
+            border: none;
+
+            border-radius: 7px;
+
+            padding: 11px 16px;
+
+            cursor: pointer;
+
+            font-weight: bold;
+
+            color: white;
+        }
+
+
+        .space-btn {
+            background: #2563eb;
+        }
+
+
+        .delete-btn {
+            background: #f59e0b;
+        }
+
+
+        .speech-btn {
+            background: #059669;
+        }
+
+
+        .clear-btn {
+            background: #dc2626;
+        }
+
+
+        .usage {
+
+            margin-top: 20px;
+
+            display: grid;
+
+            grid-template-columns:
+                1fr 1fr;
+
+            gap: 15px;
+        }
+
+
+        .usage-box {
+
+            padding: 15px;
+
+            border-radius: 10px;
+
+            background: white;
+
+            box-shadow:
+                0 2px 8px
+                rgba(0, 0, 0, 0.08);
+        }
+
+
+        .usage-box h3 {
+
+            margin-top: 0;
+
+            color: #2563eb;
+        }
+
+
+        @media (
+            max-width: 850px
+        ) {
+
+            .main-grid,
+            .usage {
+
+                grid-template-columns:
+                    1fr;
+            }
+        }
+
+    </style>
 
 </head>
 
@@ -20,273 +432,211 @@
 <body>
 
 
-    <header>
+<header>
 
-        <h1>
-            Hệ thống nhận diện ngôn ngữ ký hiệu
-        </h1>
+    <h1>
+        Hệ thống nhận diện ngôn ngữ ký hiệu
+    </h1>
 
-        <p>
-            Random Forest - MediaPipe - LSTM - Flask
-        </p>
+    <p>
+        Đánh vần chữ cái và nhận diện từ giao tiếp
+    </p>
 
-    </header>
+</header>
 
 
-    <div class="container">
+<div class="container">
 
 
-        <!-- =========================================
-             MODE
-        ========================================== -->
+    <!-- =========================================
+         MODE
+    ========================================== -->
 
-        <div class="mode-container">
+    <div class="mode-buttons">
 
-            <button
-                id="staticBtn"
-                class="mode-btn active"
-                onclick="setMode('static')"
-            >
-                Ký hiệu tĩnh
-            </button>
 
+        <button
+            id="staticBtn"
+            class="mode-btn active"
+            onclick="setMode('static')"
+        >
+            Đánh vần chữ cái
+        </button>
 
-            <button
-                id="dynamicBtn"
-                class="mode-btn"
-                onclick="setMode('dynamic')"
-            >
-                Ký hiệu động
-            </button>
 
-        </div>
+        <button
+            id="dynamicBtn"
+            class="mode-btn"
+            onclick="setMode('dynamic')"
+        >
+            Từ giao tiếp
+        </button>
 
 
-        <!-- =========================================
-             MAIN
-        ========================================== -->
+    </div>
 
-        <div class="main-grid">
 
+    <!-- =========================================
+         MAIN
+    ========================================== -->
 
-            <!-- CAMERA -->
+    <div class="main-grid">
 
-            <div class="card">
 
-                <h2>
-                    Camera
-                </h2>
+        <!-- CAMERA -->
 
-
-                <div class="camera-wrapper">
-
-                    <img
-                        id="camera"
-                        src="{{ url_for('video_feed') }}"
-                        alt="Camera nhận diện"
-                    >
-
-                </div>
-
-
-                <div class="info">
-
-                    <p>
-                        <strong>
-                            Chế độ:
-                        </strong>
-
-                        <span id="currentMode">
-                            Ký hiệu tĩnh
-                        </span>
-                    </p>
-
-
-                    <p id="modeDescription">
-
-                        Random Forest nhận diện
-                        ký hiệu tĩnh từ landmark bàn tay.
-
-                    </p>
-
-                </div>
-
-            </div>
-
-
-            <!-- STATUS -->
-
-            <div class="card">
-
-                <h2>
-                    Kết quả nhận diện
-                </h2>
-
-
-                <div class="status-grid">
-
-
-                    <div class="status-box">
-
-                        <div class="status-label">
-                            Dự đoán
-                        </div>
-
-                        <div
-                            class="status-value"
-                            id="prediction"
-                        >
-                            -
-                        </div>
-
-                    </div>
-
-
-                    <div class="status-box">
-
-                        <div class="status-label">
-                            Độ tin cậy
-                        </div>
-
-                        <div
-                            class="status-value"
-                            id="confidence"
-                        >
-                            0%
-                        </div>
-
-                    </div>
-
-
-                    <div class="status-box">
-
-                        <div class="status-label">
-                            Đã xác nhận
-                        </div>
-
-                        <div
-                            class="status-value"
-                            id="confirmed"
-                        >
-                            -
-                        </div>
-
-                    </div>
-
-
-                    <div class="status-box">
-
-                        <div class="status-label">
-                            Mô hình
-                        </div>
-
-                        <div
-                            class="status-value"
-                            id="modelName"
-                        >
-                            Random Forest
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- DYNAMIC SEQUENCE -->
-
-                <div id="sequenceContainer">
-
-                    <div class="status-label">
-
-                        Sequence:
-
-                        <strong id="sequence">
-                            0/30
-                        </strong>
-
-                    </div>
-
-
-                    <div class="progress">
-
-                        <div
-                            id="sequenceBar"
-                        ></div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- RECOGNITION STATUS -->
-
-                <div
-                    id="recognitionStatus"
-                    class="recognition-status"
-                >
-                    Sẵn sàng nhận diện
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <!-- =========================================
-             RESULT TEXT
-        ========================================== -->
-
-        <div class="card result-card">
+        <div class="card">
 
             <h2>
-                Văn bản nhận diện
+                Camera
             </h2>
 
 
+            <div class="camera">
+
+                <img
+                    src="{{ url_for('video_feed') }}"
+                    id="camera"
+                    alt="Camera"
+                >
+
+            </div>
+
+
+            <div class="mode-info">
+
+                <strong>
+                    Chế độ:
+                </strong>
+
+                <span id="currentMode">
+                    Đánh vần chữ cái
+                </span>
+
+
+                <p id="modeDescription">
+
+                    Nhận diện chữ cái A-Z để đánh vần
+                    tên người và tên địa điểm.
+
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- RESULT -->
+
+        <div class="card">
+
+            <h2>
+                Kết quả nhận diện
+            </h2>
+
+
+            <div class="status-grid">
+
+
+                <div class="status-box">
+
+                    <div class="status-name">
+                        Dự đoán
+                    </div>
+
+                    <div
+                        id="prediction"
+                        class="status-value"
+                    >
+                        -
+                    </div>
+
+                </div>
+
+
+                <div class="status-box">
+
+                    <div class="status-name">
+                        Độ tin cậy
+                    </div>
+
+                    <div
+                        id="confidence"
+                        class="status-value"
+                    >
+                        0%
+                    </div>
+
+                </div>
+
+
+                <div class="status-box">
+
+                    <div class="status-name">
+                        Đã xác nhận
+                    </div>
+
+                    <div
+                        id="confirmed"
+                        class="status-value"
+                    >
+                        -
+                    </div>
+
+                </div>
+
+
+                <div class="status-box">
+
+                    <div class="status-name">
+                        Mô hình
+                    </div>
+
+                    <div
+                        id="modelName"
+                        class="status-value"
+                    >
+                        Random Forest
+                    </div>
+
+                </div>
+
+
+            </div>
+
+
+            <!-- DYNAMIC ONLY -->
+
+            <div id="sequenceContainer">
+
+                <p>
+
+                    Sequence:
+
+                    <strong id="sequence">
+                        0/30
+                    </strong>
+
+                </p>
+
+
+                <div class="progress">
+
+                    <div id="sequenceBar">
+                    </div>
+
+                </div>
+
+            </div>
+
+
             <div
-                id="resultText"
-                class="text-result placeholder"
+                id="recognitionStatus"
+                class="recognition-status"
             >
-                Kết quả sẽ xuất hiện tại đây...
+                Sẵn sàng nhận diện
             </div>
 
-
-            <div class="actions">
-
-
-                <button
-                    class="action-btn btn-space"
-                    onclick="addSpace()"
-                >
-                    Khoảng trắng
-                </button>
-
-
-                <button
-                    class="action-btn btn-delete"
-                    onclick="deleteLast()"
-                >
-                    Xóa ký tự
-                </button>
-
-
-                <button
-                    class="action-btn btn-speak"
-                    onclick="speakText()"
-                >
-                    Đọc văn bản
-                </button>
-
-
-                <button
-                    class="action-btn btn-clear"
-                    onclick="clearText()"
-                >
-                    Xóa tất cả
-                </button>
-
-
-            </div>
 
         </div>
 
@@ -295,15 +645,141 @@
 
 
     <!-- =========================================
-         APP JS
+         TEXT
     ========================================== -->
 
-    <script
-        src="{{ url_for(
-            'static',
-            filename='js/app.js'
-        ) }}"
-    ></script>
+    <div class="card result-card">
+
+        <h2>
+            Văn bản
+        </h2>
+
+
+        <div
+            id="resultText"
+            class="placeholder"
+        >
+            Kết quả sẽ xuất hiện tại đây...
+        </div>
+
+
+        <div class="actions">
+
+
+            <button
+                class="action-btn space-btn"
+                onclick="addSpace()"
+            >
+                Khoảng trắng
+            </button>
+
+
+            <button
+                class="action-btn delete-btn"
+                onclick="deleteLast()"
+            >
+                Xóa ký tự
+            </button>
+
+
+            <button
+                class="action-btn speech-btn"
+                onclick="speakText()"
+            >
+                Đọc văn bản
+            </button>
+
+
+            <button
+                class="action-btn clear-btn"
+                onclick="clearText()"
+            >
+                Xóa tất cả
+            </button>
+
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================
+         HƯỚNG DẪN
+    ========================================== -->
+
+    <div class="usage">
+
+
+        <div class="usage-box">
+
+            <h3>
+                Đánh vần chữ cái
+            </h3>
+
+            <p>
+                Sử dụng ký hiệu tĩnh A-Z.
+            </p>
+
+            <p>
+                Ví dụ:
+            </p>
+
+            <strong>
+                H → I → E → U
+            </strong>
+
+            <p>
+                Kết quả:
+                <strong>HIEU</strong>
+            </p>
+
+            <p>
+                Có thể dùng để đánh vần tên người
+                hoặc tên địa điểm.
+            </p>
+
+        </div>
+
+
+        <div class="usage-box">
+
+            <h3>
+                Từ giao tiếp
+            </h3>
+
+            <p>
+                Sử dụng chuyển động tay liên tục.
+            </p>
+
+            <p>
+                Ví dụ:
+            </p>
+
+            <strong>
+                XIN_CHAO → Xin chào
+            </strong>
+
+            <br><br>
+
+            <strong>
+                XIN_LOI → Xin lỗi
+            </strong>
+
+        </div>
+
+
+    </div>
+
+
+</div>
+
+
+<script
+    src="{{ url_for(
+        'static',
+        filename='js/app.js'
+    ) }}"
+></script>
 
 
 </body>
