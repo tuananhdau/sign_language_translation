@@ -1,212 +1,4 @@
 // =========================================================
-// GLOBAL
-// =========================================================
-
-let currentMode = "static";
-
-let changingMode = false;
-
-
-// =========================================================
-// SET MODE
-// =========================================================
-
-async function setMode(mode) {
-
-    if (changingMode) {
-        return;
-    }
-
-
-    if (
-        mode !== "static"
-        &&
-        mode !== "dynamic"
-    ) {
-
-        return;
-    }
-
-
-    changingMode = true;
-
-
-    try {
-
-        const response = await fetch(
-
-            "/set_mode",
-
-            {
-                method: "POST",
-
-                headers: {
-
-                    "Content-Type":
-                        "application/json"
-
-                },
-
-                body: JSON.stringify({
-
-                    mode: mode
-
-                })
-            }
-        );
-
-
-        const data =
-            await response.json();
-
-
-        if (!data.success) {
-
-            console.log(
-                "Khong chuyen duoc mode."
-            );
-
-            return;
-        }
-
-
-        currentMode = mode;
-
-
-        updateModeUI(
-            mode
-        );
-
-
-        resetRecognitionUI();
-
-
-    } catch (error) {
-
-        console.error(
-            error
-        );
-
-    } finally {
-
-        changingMode = false;
-    }
-
-}
-
-
-// =========================================================
-// UPDATE MODE UI
-// =========================================================
-
-function updateModeUI(mode) {
-
-    const staticBtn =
-        document.getElementById(
-            "staticBtn"
-        );
-
-
-    const dynamicBtn =
-        document.getElementById(
-            "dynamicBtn"
-        );
-
-
-    const currentModeElement =
-        document.getElementById(
-            "currentMode"
-        );
-
-
-    const description =
-        document.getElementById(
-            "modeDescription"
-        );
-
-
-    const modelName =
-        document.getElementById(
-            "modelName"
-        );
-
-
-    const sequenceContainer =
-        document.getElementById(
-            "sequenceContainer"
-        );
-
-
-    // =====================================================
-    // DYNAMIC
-    // =====================================================
-
-    if (mode === "dynamic") {
-
-        staticBtn.classList.remove(
-            "active"
-        );
-
-
-        dynamicBtn.classList.add(
-            "active"
-        );
-
-
-        currentModeElement.innerText =
-            "Từ giao tiếp";
-
-
-        modelName.innerText =
-            "LSTM";
-
-
-        description.innerText =
-            "Nhận diện từ/cụm từ động như Xin chào, Xin lỗi từ chuỗi 30 frame.";
-
-
-        sequenceContainer.style.display =
-            "block";
-
-    }
-
-    // =====================================================
-    // STATIC
-    // =====================================================
-
-    else {
-
-        dynamicBtn.classList.remove(
-            "active"
-        );
-
-
-        staticBtn.classList.add(
-            "active"
-        );
-
-
-        currentModeElement.innerText =
-            "Đánh vần chữ cái";
-
-
-        modelName.innerText =
-            "Random Forest";
-
-
-        description.innerText =
-            "Nhận diện các chữ cái A-Z để đánh vần tên người và tên địa điểm.";
-
-
-        sequenceContainer.style.display =
-            "none";
-
-    }
-
-}
-
-
-// =========================================================
 // UPDATE STATUS
 // =========================================================
 
@@ -225,7 +17,6 @@ async function updateStatus() {
 
 
         if (!response.ok) {
-
             return;
         }
 
@@ -238,21 +29,9 @@ async function updateStatus() {
         // MODE
         // =================================================
 
-        if (
+        updateAutoMode(
             data.mode
-            &&
-            data.mode !== currentMode
-        ) {
-
-            currentMode =
-                data.mode;
-
-
-            updateModeUI(
-                currentMode
-            );
-
-        }
+        );
 
 
         // =================================================
@@ -298,6 +77,23 @@ async function updateStatus() {
 
 
         // =================================================
+        // MOTION
+        // =================================================
+
+        const motion =
+            Number(
+                data.motion || 0
+            );
+
+
+        document.getElementById(
+            "motionValue"
+        ).innerText =
+
+            motion.toFixed(4);
+
+
+        // =================================================
         // TEXT
         // =================================================
 
@@ -307,72 +103,31 @@ async function updateStatus() {
 
 
         // =================================================
-        // DYNAMIC SEQUENCE
+        // SEQUENCE
         // =================================================
 
-        if (
-            data.mode
-            === "dynamic"
-        ) {
+        updateSequence(
 
-            const current =
-                Number(
-                    data.sequence || 0
-                );
+            data.mode,
 
+            Number(
+                data.sequence || 0
+            ),
 
-            const total =
-                Number(
-                    data.sequence_length
-                    || 30
-                );
-
-
-            document.getElementById(
-                "sequence"
-            ).innerText =
-
-                current
-                + "/"
-                + total;
-
-
-            let percent = 0;
-
-
-            if (total > 0) {
-
-                percent =
-                    (
-                        current
-                        /
-                        total
-                    )
-                    * 100;
-            }
-
-
-            percent =
-                Math.min(
-                    percent,
-                    100
-                );
-
-
-            document.getElementById(
-                "sequenceBar"
-            ).style.width =
-
-                percent + "%";
-
-        }
+            Number(
+                data.sequence_length
+                || 30
+            )
+        );
 
 
         // =================================================
-        // STATUS
+        // STATUS MESSAGE
         // =================================================
 
         updateRecognitionStatus(
+
+            data.mode,
 
             Boolean(
                 data.waiting
@@ -395,19 +150,180 @@ async function updateStatus() {
             "Status error:",
             error
         );
+
     }
 
 }
 
 
 // =========================================================
-// STATUS MESSAGE
+// AUTO MODE
+// =========================================================
+
+function updateAutoMode(mode) {
+
+    const currentMode =
+        document.getElementById(
+            "currentMode"
+        );
+
+
+    const modelName =
+        document.getElementById(
+            "modelName"
+        );
+
+
+    const description =
+        document.getElementById(
+            "modeDescription"
+        );
+
+
+    if (mode === "static") {
+
+        currentMode.innerText =
+            "Đang nhận diện chữ cái";
+
+
+        modelName.innerText =
+            "Random Forest";
+
+
+        description.innerText =
+            "Bàn tay đang ổn định. Hệ thống tự sử dụng Random Forest để nhận diện chữ cái.";
+
+    }
+
+    else if (
+        mode === "dynamic"
+    ) {
+
+        currentMode.innerText =
+            "Đang nhận diện từ giao tiếp";
+
+
+        modelName.innerText =
+            "LSTM";
+
+
+        description.innerText =
+            "Phát hiện chuyển động. Hệ thống tự sử dụng LSTM để nhận diện từ giao tiếp.";
+
+    }
+
+    else {
+
+        currentMode.innerText =
+            "Đang xác định ký hiệu";
+
+
+        modelName.innerText =
+            "Đang xác định";
+
+
+        description.innerText =
+            "Hệ thống đang phân tích chuyển động bàn tay để chọn mô hình phù hợp.";
+
+    }
+
+}
+
+
+// =========================================================
+// SEQUENCE
+// =========================================================
+
+function updateSequence(
+    mode,
+    current,
+    total
+) {
+
+    const container =
+        document.getElementById(
+            "sequenceContainer"
+        );
+
+
+    const sequence =
+        document.getElementById(
+            "sequence"
+        );
+
+
+    const bar =
+        document.getElementById(
+            "sequenceBar"
+        );
+
+
+    // Chỉ hiện khi Dynamic
+    if (mode !== "dynamic") {
+
+        container.style.display =
+            "none";
+
+
+        bar.style.width =
+            "0%";
+
+
+        sequence.innerText =
+            "0/" + total;
+
+
+        return;
+    }
+
+
+    container.style.display =
+        "block";
+
+
+    sequence.innerText =
+
+        current
+        + "/"
+        + total;
+
+
+    let percent = 0;
+
+
+    if (total > 0) {
+
+        percent =
+            (
+                current
+                /
+                total
+            )
+            * 100;
+    }
+
+
+    percent = Math.min(
+        percent,
+        100
+    );
+
+
+    bar.style.width =
+        percent + "%";
+
+}
+
+
+// =========================================================
+// RECOGNITION STATUS
 // =========================================================
 
 function updateRecognitionStatus(
+    mode,
     waiting,
     sequence,
-    sequenceLength
+    total
 ) {
 
     const element =
@@ -423,7 +339,7 @@ function updateRecognitionStatus(
     if (waiting) {
 
         element.innerText =
-            "Đã nhận diện - hãy bỏ tay ra để tiếp tục";
+            "Đã nhận diện - hãy bỏ tay ra trước khi thực hiện ký hiệu tiếp theo";
 
 
         element.classList.add(
@@ -444,13 +360,10 @@ function updateRecognitionStatus(
     // STATIC
     // =====================================================
 
-    if (
-        currentMode
-        === "static"
-    ) {
+    if (mode === "static") {
 
         element.innerText =
-            "Sẵn sàng nhận diện chữ cái";
+            "Giữ ổn định ký hiệu chữ cái...";
 
 
         return;
@@ -461,23 +374,34 @@ function updateRecognitionStatus(
     // DYNAMIC
     // =====================================================
 
-    if (
-        sequence
-        < sequenceLength
-    ) {
+    if (mode === "dynamic") {
 
-        element.innerText =
+        if (sequence < total) {
 
-            "Đang thu chuyển động "
-            + sequence
-            + "/"
-            + sequenceLength;
+            element.innerText =
 
-    } else {
+                "Đang thu chuyển động "
+                + sequence
+                + "/"
+                + total;
 
-        element.innerText =
-            "Đang nhận diện từ...";
+        } else {
+
+            element.innerText =
+                "Đang phân tích từ giao tiếp...";
+        }
+
+
+        return;
     }
+
+
+    // =====================================================
+    // WAITING
+    // =====================================================
+
+    element.innerText =
+        "Đang phân tích chuyển động bàn tay...";
 
 }
 
@@ -558,13 +482,14 @@ async function addSpace() {
         console.error(
             error
         );
+
     }
 
 }
 
 
 // =========================================================
-// DELETE LAST
+// DELETE
 // =========================================================
 
 async function deleteLast() {
@@ -598,6 +523,7 @@ async function deleteLast() {
         console.error(
             error
         );
+
     }
 
 }
@@ -627,12 +553,38 @@ async function clearText() {
 
         if (data.success) {
 
-            updateText(
-                ""
+            updateText("");
+
+            document.getElementById(
+                "prediction"
+            ).innerText = "-";
+
+
+            document.getElementById(
+                "confidence"
+            ).innerText = "0%";
+
+
+            document.getElementById(
+                "confirmed"
+            ).innerText = "-";
+
+
+            document.getElementById(
+                "motionValue"
+            ).innerText = "0.0000";
+
+
+            updateAutoMode(
+                "waiting"
             );
 
 
-            resetRecognitionUI();
+            updateSequence(
+                "waiting",
+                0,
+                30
+            );
         }
 
 
@@ -641,50 +593,8 @@ async function clearText() {
         console.error(
             error
         );
+
     }
-
-}
-
-
-// =========================================================
-// RESET UI
-// =========================================================
-
-function resetRecognitionUI() {
-
-    document.getElementById(
-        "prediction"
-    ).innerText = "-";
-
-
-    document.getElementById(
-        "confidence"
-    ).innerText = "0%";
-
-
-    document.getElementById(
-        "confirmed"
-    ).innerText = "-";
-
-
-    document.getElementById(
-        "sequence"
-    ).innerText = "0/30";
-
-
-    document.getElementById(
-        "sequenceBar"
-    ).style.width = "0%";
-
-
-    updateRecognitionStatus(
-
-        false,
-
-        0,
-
-        30
-    );
 
 }
 
@@ -706,7 +616,6 @@ function speakText() {
             "placeholder"
         )
     ) {
-
         return;
     }
 
@@ -716,7 +625,6 @@ function speakText() {
 
 
     if (!text) {
-
         return;
     }
 
@@ -729,14 +637,13 @@ function speakText() {
     ) {
 
         alert(
-            "Trình duyệt không hỗ trợ Text-to-Speech."
+            "Trình duyệt không hỗ trợ đọc văn bản."
         );
 
         return;
     }
 
 
-    // Dừng giọng trước
     window.speechSynthesis.cancel();
 
 
@@ -750,16 +657,11 @@ function speakText() {
         "vi-VN";
 
 
-    speech.rate =
-        1;
+    speech.rate = 1;
 
+    speech.pitch = 1;
 
-    speech.pitch =
-        1;
-
-
-    speech.volume =
-        1;
+    speech.volume = 1;
 
 
     window.speechSynthesis.speak(
@@ -770,7 +672,7 @@ function speakText() {
 
 
 // =========================================================
-// INITIALIZE
+// START
 // =========================================================
 
 document.addEventListener(
@@ -779,23 +681,26 @@ document.addEventListener(
 
     function () {
 
-        updateModeUI(
-            "static"
+        updateAutoMode(
+            "waiting"
+        );
+
+
+        updateSequence(
+            "waiting",
+            0,
+            30
         );
 
 
         updateStatus();
 
 
-        // cập nhật khoảng
-        // 3 lần / giây
-
         setInterval(
 
             updateStatus,
 
             300
-
         );
 
     }

@@ -6,12 +6,11 @@ class SentenceBuilder:
     def __init__(self):
 
         self.text = ""
-
         self.lock = threading.Lock()
 
 
     # =====================================================
-    # STATIC - THÊM CHỮ CÁI
+    # CHỮ CÁI: A B C...
     # =====================================================
 
     def add_letter(self, letter):
@@ -32,7 +31,7 @@ class SentenceBuilder:
 
 
     # =====================================================
-    # DYNAMIC - THÊM TỪ / CỤM TỪ
+    # TỪ / CỤM TỪ: Xin chào, Xin lỗi...
     # =====================================================
 
     def add_phrase(self, phrase):
@@ -47,14 +46,11 @@ class SentenceBuilder:
 
         with self.lock:
 
-            # Nếu phía trước đã có chữ
-            # thì tự thêm khoảng trắng
             if (
                 self.text
                 and
                 not self.text.endswith(" ")
             ):
-
                 self.text += " "
 
             self.text += phrase
@@ -63,7 +59,7 @@ class SentenceBuilder:
 
 
     # =====================================================
-    # KHOẢNG TRẮNG
+    # SPACE
     # =====================================================
 
     def add_space(self):
@@ -75,14 +71,13 @@ class SentenceBuilder:
                 and
                 not self.text.endswith(" ")
             ):
-
                 self.text += " "
 
             return self.text
 
 
     # =====================================================
-    # XÓA KÝ TỰ CUỐI
+    # DELETE
     # =====================================================
 
     def delete_last(self):
@@ -90,14 +85,13 @@ class SentenceBuilder:
         with self.lock:
 
             if self.text:
-
                 self.text = self.text[:-1]
 
             return self.text
 
 
     # =====================================================
-    # XÓA TẤT CẢ
+    # CLEAR
     # =====================================================
 
     def clear(self):
@@ -110,11 +104,10 @@ class SentenceBuilder:
 
 
     # =====================================================
-    # GET TEXT
+    # GET
     # =====================================================
 
     def get_text(self):
 
         with self.lock:
-
             return self.text

@@ -75,48 +75,6 @@
         }
 
 
-        .mode-buttons {
-
-            display: flex;
-
-            justify-content: center;
-
-            gap: 15px;
-
-            margin-bottom: 20px;
-        }
-
-
-        .mode-btn {
-
-            border: none;
-
-            border-radius: 8px;
-
-            padding: 12px 24px;
-
-            cursor: pointer;
-
-            font-size: 16px;
-
-            font-weight: bold;
-
-            background: white;
-
-            box-shadow:
-                0 2px 10px
-                rgba(0, 0, 0, 0.1);
-        }
-
-
-        .mode-btn.active {
-
-            background: #2563eb;
-
-            color: white;
-        }
-
-
         .main-grid {
 
             display: grid;
@@ -158,7 +116,7 @@
         }
 
 
-        .camera img {
+        #camera {
 
             display: block;
 
@@ -168,18 +126,26 @@
         }
 
 
-        .mode-info {
+        .auto-info {
 
             margin-top: 15px;
 
-            padding: 14px;
+            padding: 15px;
+
+            border-radius: 8px;
 
             background: #eff6ff;
 
             border-left:
                 4px solid #2563eb;
+        }
 
-            border-radius: 8px;
+
+        #currentMode {
+
+            font-weight: bold;
+
+            color: #2563eb;
         }
 
 
@@ -213,7 +179,7 @@
 
             font-size: 13px;
 
-            margin-bottom: 5px;
+            margin-bottom: 6px;
         }
 
 
@@ -222,6 +188,8 @@
             font-size: 18px;
 
             font-weight: bold;
+
+            word-break: break-word;
         }
 
 
@@ -239,6 +207,8 @@
 
         #sequenceContainer {
 
+            display: none;
+
             margin-top: 18px;
         }
 
@@ -247,13 +217,11 @@
 
             height: 15px;
 
-            border-radius: 20px;
-
             background: #e5e7eb;
 
-            overflow: hidden;
+            border-radius: 20px;
 
-            margin-top: 8px;
+            overflow: hidden;
         }
 
 
@@ -270,7 +238,7 @@
         }
 
 
-        .recognition-status {
+        .system-status {
 
             margin-top: 15px;
 
@@ -282,17 +250,17 @@
 
             font-weight: bold;
 
-            color: #047857;
-
             background: #ecfdf5;
+
+            color: #047857;
         }
 
 
-        .recognition-status.waiting {
-
-            color: #c2410c;
+        .system-status.waiting {
 
             background: #fff7ed;
+
+            color: #c2410c;
         }
 
 
@@ -306,14 +274,14 @@
 
             min-height: 100px;
 
+            padding: 16px;
+
             border:
                 2px solid #e5e7eb;
 
-            background: #fafafa;
-
             border-radius: 10px;
 
-            padding: 16px;
+            background: #fafafa;
 
             font-size: 24px;
 
@@ -345,15 +313,15 @@
 
             border: none;
 
-            border-radius: 7px;
-
             padding: 11px 16px;
+
+            border-radius: 7px;
 
             cursor: pointer;
 
-            font-weight: bold;
-
             color: white;
+
+            font-weight: bold;
         }
 
 
@@ -377,38 +345,48 @@
         }
 
 
-        .usage {
+        .guide {
 
             margin-top: 20px;
+
+            background: white;
+
+            border-radius: 12px;
+
+            padding: 20px;
+
+            box-shadow:
+                0 3px 12px
+                rgba(0, 0, 0, 0.08);
+        }
+
+
+        .guide-grid {
 
             display: grid;
 
             grid-template-columns:
                 1fr 1fr;
 
-            gap: 15px;
+            gap: 20px;
         }
 
 
-        .usage-box {
+        .guide-box {
 
             padding: 15px;
 
-            border-radius: 10px;
+            background: #f9fafb;
 
-            background: white;
-
-            box-shadow:
-                0 2px 8px
-                rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
         }
 
 
-        .usage-box h3 {
-
-            margin-top: 0;
+        .guide-box h3 {
 
             color: #2563eb;
+
+            margin-top: 0;
         }
 
 
@@ -417,11 +395,12 @@
         ) {
 
             .main-grid,
-            .usage {
+            .guide-grid {
 
                 grid-template-columns:
                     1fr;
             }
+
         }
 
     </style>
@@ -439,7 +418,7 @@
     </h1>
 
     <p>
-        Đánh vần chữ cái và nhận diện từ giao tiếp
+        Một camera - tự động nhận diện chữ cái và từ giao tiếp
     </p>
 
 </header>
@@ -447,38 +426,6 @@
 
 <div class="container">
 
-
-    <!-- =========================================
-         MODE
-    ========================================== -->
-
-    <div class="mode-buttons">
-
-
-        <button
-            id="staticBtn"
-            class="mode-btn active"
-            onclick="setMode('static')"
-        >
-            Đánh vần chữ cái
-        </button>
-
-
-        <button
-            id="dynamicBtn"
-            class="mode-btn"
-            onclick="setMode('dynamic')"
-        >
-            Từ giao tiếp
-        </button>
-
-
-    </div>
-
-
-    <!-- =========================================
-         MAIN
-    ========================================== -->
 
     <div class="main-grid">
 
@@ -488,36 +435,36 @@
         <div class="card">
 
             <h2>
-                Camera
+                Camera nhận diện
             </h2>
 
 
             <div class="camera">
 
                 <img
-                    src="{{ url_for('video_feed') }}"
                     id="camera"
+                    src="{{ url_for('video_feed') }}"
                     alt="Camera"
                 >
 
             </div>
 
 
-            <div class="mode-info">
+            <div class="auto-info">
 
                 <strong>
-                    Chế độ:
+                    Hệ thống:
                 </strong>
 
                 <span id="currentMode">
-                    Đánh vần chữ cái
+                    Đang chờ ký hiệu
                 </span>
 
 
                 <p id="modeDescription">
 
-                    Nhận diện chữ cái A-Z để đánh vần
-                    tên người và tên địa điểm.
+                    Hệ thống sẽ tự xác định
+                    ký hiệu chữ cái hoặc từ giao tiếp.
 
                 </p>
 
@@ -526,7 +473,7 @@
         </div>
 
 
-        <!-- RESULT -->
+        <!-- STATUS -->
 
         <div class="card">
 
@@ -589,14 +536,30 @@
                 <div class="status-box">
 
                     <div class="status-name">
-                        Mô hình
+                        Mô hình đang dùng
                     </div>
 
                     <div
                         id="modelName"
                         class="status-value"
                     >
-                        Random Forest
+                        Đang xác định
+                    </div>
+
+                </div>
+
+
+                <div class="status-box">
+
+                    <div class="status-name">
+                        Mức chuyển động
+                    </div>
+
+                    <div
+                        id="motionValue"
+                        class="status-value"
+                    >
+                        0.0000
                     </div>
 
                 </div>
@@ -605,13 +568,13 @@
             </div>
 
 
-            <!-- DYNAMIC ONLY -->
+            <!-- DYNAMIC -->
 
             <div id="sequenceContainer">
 
                 <p>
 
-                    Sequence:
+                    Chuỗi video:
 
                     <strong id="sequence">
                         0/30
@@ -622,8 +585,7 @@
 
                 <div class="progress">
 
-                    <div id="sequenceBar">
-                    </div>
+                    <div id="sequenceBar"></div>
 
                 </div>
 
@@ -632,26 +594,23 @@
 
             <div
                 id="recognitionStatus"
-                class="recognition-status"
+                class="system-status"
             >
-                Sẵn sàng nhận diện
+                Đưa tay vào camera để bắt đầu
             </div>
 
 
         </div>
 
-
     </div>
 
 
-    <!-- =========================================
-         TEXT
-    ========================================== -->
+    <!-- TEXT -->
 
     <div class="card result-card">
 
         <h2>
-            Văn bản
+            Văn bản nhận diện
         </h2>
 
 
@@ -703,70 +662,72 @@
     </div>
 
 
-    <!-- =========================================
-         HƯỚNG DẪN
-    ========================================== -->
+    <!-- GUIDE -->
 
-    <div class="usage">
+    <div class="guide">
+
+        <h2>
+            Cách sử dụng
+        </h2>
 
 
-        <div class="usage-box">
+        <div class="guide-grid">
 
-            <h3>
-                Đánh vần chữ cái
-            </h3>
 
-            <p>
-                Sử dụng ký hiệu tĩnh A-Z.
-            </p>
+            <div class="guide-box">
 
-            <p>
-                Ví dụ:
-            </p>
+                <h3>
+                    Đánh vần tên / địa điểm
+                </h3>
 
-            <strong>
-                H → I → E → U
-            </strong>
+                <p>
+                    Giữ ký hiệu chữ cái ổn định.
+                </p>
 
-            <p>
-                Kết quả:
-                <strong>HIEU</strong>
-            </p>
+                <p>
+                    Ví dụ:
+                </p>
 
-            <p>
-                Có thể dùng để đánh vần tên người
-                hoặc tên địa điểm.
-            </p>
+                <strong>
+                    H → I → E → U
+                </strong>
+
+                <p>
+                    Kết quả:
+                    <strong>HIEU</strong>
+                </p>
+
+            </div>
+
+
+            <div class="guide-box">
+
+                <h3>
+                    Từ giao tiếp
+                </h3>
+
+                <p>
+                    Thực hiện chuyển động tay liên tục.
+                </p>
+
+                <p>
+                    Ví dụ:
+                </p>
+
+                <strong>
+                    XIN_CHAO → Xin chào
+                </strong>
+
+                <br><br>
+
+                <strong>
+                    XIN_LOI → Xin lỗi
+                </strong>
+
+            </div>
+
 
         </div>
-
-
-        <div class="usage-box">
-
-            <h3>
-                Từ giao tiếp
-            </h3>
-
-            <p>
-                Sử dụng chuyển động tay liên tục.
-            </p>
-
-            <p>
-                Ví dụ:
-            </p>
-
-            <strong>
-                XIN_CHAO → Xin chào
-            </strong>
-
-            <br><br>
-
-            <strong>
-                XIN_LOI → Xin lỗi
-            </strong>
-
-        </div>
-
 
     </div>
 
