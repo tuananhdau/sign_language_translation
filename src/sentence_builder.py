@@ -3,181 +3,104 @@ import threading
 
 class SentenceBuilder:
 
-    def __init__(
-        self
-    ):
+    def __init__(self):
 
         self.text = ""
 
-        self.lock = (
-            threading.Lock()
-        )
+        self.lock = threading.Lock()
 
 
     # =====================================================
-    # ADD CHARACTER
+    # STATIC - THÊM CHỮ CÁI
     # =====================================================
 
-    def add_character(
-        self,
-        character
-    ):
+    def add_letter(self, letter):
 
-        if not character:
-
+        if not letter:
             return self.get_text()
 
+        letter = str(letter).strip().upper()
+
+        if not letter:
+            return self.get_text()
 
         with self.lock:
 
-            self.text += str(
-                character
-            )
-
+            self.text += letter
 
             return self.text
 
 
     # =====================================================
-    # ADD WORD
+    # DYNAMIC - THÊM TỪ / CỤM TỪ
     # =====================================================
 
-    def add_word(
-        self,
-        word
-    ):
+    def add_phrase(self, phrase):
 
-        if not word:
-
+        if not phrase:
             return self.get_text()
 
+        phrase = str(phrase).strip()
 
-        word = str(
-            word
-        ).strip()
-
-
-        if not word:
-
+        if not phrase:
             return self.get_text()
 
+        with self.lock:
+
+            # Nếu phía trước đã có chữ
+            # thì tự thêm khoảng trắng
+            if (
+                self.text
+                and
+                not self.text.endswith(" ")
+            ):
+
+                self.text += " "
+
+            self.text += phrase
+
+            return self.text
+
+
+    # =====================================================
+    # KHOẢNG TRẮNG
+    # =====================================================
+
+    def add_space(self):
 
         with self.lock:
 
             if (
                 self.text
-
                 and
-
-                not self.text.endswith(
-                    " "
-                )
+                not self.text.endswith(" ")
             ):
 
                 self.text += " "
-
-
-            self.text += word
-
 
             return self.text
 
 
     # =====================================================
-    # SPACE
+    # XÓA KÝ TỰ CUỐI
     # =====================================================
 
-    def add_space(
-        self
-    ):
-
-        with self.lock:
-
-            if (
-                self.text
-
-                and
-
-                not self.text.endswith(
-                    " "
-                )
-            ):
-
-                self.text += " "
-
-
-            return self.text
-
-
-    # =====================================================
-    # DELETE CHARACTER
-    # =====================================================
-
-    def delete_last(
-        self
-    ):
+    def delete_last(self):
 
         with self.lock:
 
             if self.text:
 
-                self.text = (
-                    self.text[:-1]
-                )
-
+                self.text = self.text[:-1]
 
             return self.text
 
 
     # =====================================================
-    # DELETE WORD
+    # XÓA TẤT CẢ
     # =====================================================
 
-    def delete_last_word(
-        self
-    ):
-
-        with self.lock:
-
-            cleaned = (
-                self.text.rstrip()
-            )
-
-
-            if not cleaned:
-
-                self.text = ""
-
-                return self.text
-
-
-            words = (
-                cleaned.split()
-            )
-
-
-            words = (
-                words[:-1]
-            )
-
-
-            self.text = (
-                " ".join(
-                    words
-                )
-            )
-
-
-            return self.text
-
-
-    # =====================================================
-    # CLEAR
-    # =====================================================
-
-    def clear(
-        self
-    ):
+    def clear(self):
 
         with self.lock:
 
@@ -190,28 +113,8 @@ class SentenceBuilder:
     # GET TEXT
     # =====================================================
 
-    def get_text(
-        self
-    ):
+    def get_text(self):
 
         with self.lock:
 
             return self.text
-
-
-    # =====================================================
-    # CHECK EMPTY
-    # =====================================================
-
-    def is_empty(
-        self
-    ):
-
-        with self.lock:
-
-            return (
-                len(
-                    self.text.strip()
-                )
-                == 0
-            )
